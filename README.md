@@ -198,6 +198,7 @@ curl -X POST https://你的域名/api/quick \
 | **放映室** `/screenings` | 每一段完整的纪念视频是一场「首映」：片名、导演寄语、首映日期（到日子才能看） |
 | **访客模式** | 每个栏目、每一页都能单独设成「公开」或「仅她可见」，给朋友看一部分，其余是悄悄话 |
 | **深色模式** | 夜晚的小星球：暖调深梅棕的纸；跟随系统，也能手动切换 |
+| **PWA** | 可安装到手机主屏幕（iOS「添加到主屏幕」/ 安卓「安装应用」），图标、状态栏配色跟随主题；离线时给一张离线页，已缓存的静态资源照常可用，内容在线正常加载 |
 | **三语切换** | 简体中文 / 繁體中文 / English 一键切换，界面文案、API 错误消息整站跟随；选择存本地，不改 URL、不影响她的链接 |
 | **四套配色** | 玫瑰粉（默认）、樱花、薰衣草、蜜桃四套主题色随时换，和深色模式互不干扰 |
 
@@ -340,6 +341,7 @@ pm2 start "npm run start" --name journal       # 或用 systemd
 | `npm run seed` | 填一本示例手账（会清空现有内容，只在新本子上用） |
 | `npm run convert-heic` | 把库里存量的 HEIC 照片批量转成 JPG |
 | `npm run gen-posters` | 给已有视频补封面 |
+| `npm run gen-pwa-icons` | 从 `src/app/icon.svg` 重新生成 PWA 图标（192 / 512 / maskable / apple-touch） |
 | `node scripts/gen-thumbs.mjs` | 给已有照片补 WebP 缩略图 |
 | `npm run backfill-fingerprints` | 给已有照片视频补内容指纹（用于「这张传过了」提示） |
 | `npm run migrate-oss` | 本地媒体迁移到 OSS |

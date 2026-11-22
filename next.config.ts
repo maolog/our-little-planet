@@ -10,6 +10,23 @@ const nextConfig: NextConfig = {
   // 部署时可用 NEXT_DIST_DIR=.next-new 先在旁边构建，完成后整体换名上线，
   // 避免构建过程中旧进程的 chunk 被替换掉、线上出现一分钟左右的报错窗口
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
+  async headers() {
+    return [
+      // Service Worker 必须每次都拿最新版，否则更新发不下去（Next 官方 PWA 指南）
+      {
+        source: "/service-worker.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+        ],
+      },
+      // 离线页随 SW 版本更新，不强缓存
+      {
+        source: "/offline.html",
+        headers: [{ key: "Cache-Control", value: "no-cache" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

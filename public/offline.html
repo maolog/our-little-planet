@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#fff9f0" />
+    <title>离线 · 我们的小星球</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff9f0;
+        color: #5c4a42;
+        font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+      .card {
+        max-width: 320px;
+        padding: 40px 32px;
+        background: #fff;
+        border: 1px solid #f0e2d4;
+        border-radius: 18px;
+        box-shadow: 0 8px 32px rgba(92, 74, 66, 0.08);
+      }
+      .heart {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 20px;
+        display: block;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 19px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      p {
+        margin: 0 0 6px;
+        font-size: 14px;
+        line-height: 1.7;
+        color: #7e6557;
+      }
+      .hint {
+        margin-top: 18px;
+        font-size: 12px;
+        color: #a58b7a;
+      }
+      button {
+        margin-top: 22px;
+        padding: 10px 28px;
+        border: none;
+        border-radius: 999px;
+        background: #e48ba8;
+        color: #fff9f0;
+        font-size: 14px;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      button:active { transform: scale(0.97); }
+      @media (prefers-color-scheme: dark) {
+        body { background: #231c22; color: #eee3da; }
+        .card { background: #2d252d; border-color: #3a313a; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+        p { color: #c8b5ab; }
+        .hint { color: #8d7a70; }
+        button { background: #e795b0; color: #231c22; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <svg class="heart" viewBox="0 0 64 64" aria-hidden="true">
+        <path
+          d="M32 50c-10-7-18-13.4-18-21.2 0-6 4.6-10.8 10.4-10.8 3 0 5.8 1.4 7.6 3.8 1.8-2.4 4.6-3.8 7.6-3.8C45.4 18.2 50 23 50 28.8 50 36.6 42 43 32 50z"
+          fill="#e48ba8"
+        />
+      </svg>
+      <h1>现在是离线的</h1>
+      <p>小星球暂时联系不上地球。</p>
+      <p>连上网络后再来看看吧。</p>
+      <div class="hint">已缓存的页面和图片仍可翻阅</div>
+      <button onclick="location.reload()">重新加载</button>
+    </div>
+    <script>
+      // 跟随站点语言（LocaleProvider 写在 localStorage）
+      try {
+        var l = localStorage.getItem("journal-locale");
+        if (l === "en") {
+          document.documentElement.lang = "en";
+          document.title = "Offline";
+          document.querySelector("h1").textContent = "You're offline";
+          var ps = document.querySelectorAll("p");
+          ps[0].textContent = "The little planet lost its signal.";
+          ps[1].textContent = "Come back once you're online.";
+          document.querySelector(".hint").textContent = "Cached pages and photos are still here";
+          document.querySelector("button").textContent = "Retry";
+        } else if (l === "zh-TW") {
+          document.title = "離線";
+          document.querySelector("h1").textContent = "現在是離線的";
+          var ps2 = document.querySelectorAll("p");
+          ps2[0].textContent = "小星球暫時聯絡不上地球。";
+          ps2[1].textContent = "連上網路後再來看看吧。";
+          document.querySelector(".hint").textContent = "已快取的頁面和圖片仍可翻閱";
+          document.querySelector("button").textContent = "重新載入";
+        }
+      } catch (e) {}
+    </script>
+  </body>
+</html>

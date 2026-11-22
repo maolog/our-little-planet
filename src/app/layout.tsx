@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "lxgw-wenkai-webfont/style.css";
 import "@fontsource/caveat/400.css";
 import "@fontsource/caveat/700.css";
@@ -11,6 +11,7 @@ import { getLocale } from "@/i18n/server";
 import { translate } from "@/i18n";
 import { LOCALE_HTML_LANG } from "@/i18n/config";
 import { ChunkReloadGuard } from "@/components/ChunkReloadGuard";
+import { PwaRegister } from "@/components/PwaRegister";
 import { DemoBadge } from "@/components/DemoBadge";
 import { DEMO_RESET_MINUTES, IS_DEMO } from "@/lib/demo";
 
@@ -26,8 +27,24 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: translate(locale, "meta.siteDescription"),
     robots: { index: false, follow: false },
+    // PWA：加到主屏幕（manifest 由 app/manifest.ts 提供，显式声明防自动发现失效）
+    manifest: "/manifest.webmanifest",
+    applicationName: translate(locale, "meta.siteTitle"),
+    appleWebApp: {
+      capable: true,
+      title: translate(locale, "meta.siteTitle"),
+      statusBarStyle: "default",
+    },
   };
 }
+
+/** 状态栏/浏览器 UI 配色跟明暗模式走（亮=纸白，暗=深梅棕，同 globals.css 的 --paper） */
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fff9f0" },
+    { media: "(prefers-color-scheme: dark)", color: "#231c22" },
+  ],
+};
 
 /** 首帧定明暗 + 配色：存过偏好就用偏好，明暗没存过跟系统走。放在 head 内联执行，避免闪一下白纸 */
 const THEME_INIT = `try{var t=localStorage.getItem("journal-theme");if(t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark");var p=localStorage.getItem("journal-palette");if(p&&p!=="rose"&&/^(sakura|lavender|peach)$/.test(p))document.documentElement.setAttribute("data-palette",p)}catch(e){}`;
@@ -47,6 +64,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* 纸张纹理：盖在最上层但不挡交互 */}
         <div className="grain" aria-hidden />
         <ChunkReloadGuard />
+        <PwaRegister />
         {IS_DEMO && (
           <DemoBadge
             resetMinutes={DEMO_RESET_MINUTES}
