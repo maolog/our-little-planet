@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import {
   DEFAULT_LOCALE,
   LOCALE_COOKIE,
@@ -65,20 +66,30 @@ function persistLocale(l: Locale) {
 }
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const locale = useSyncExternalStore(subscribeLocale, getLocaleSnapshot, getLocaleServerSnapshot);
 
   useEffect(() => {
     const initial = getLocaleSnapshot();
     document.documentElement.lang = LOCALE_HTML_LANG[initial];
-    // 若 cookie 缺失（首次访问或清过 cookie），补写一份给服务端
-    if (!document.cookie.split("; ").some((c) => c.startsWith(`${LOCALE_COOKIE}=`))) {
+    // cookie 缺失（首次访问或清过 cookie）或与本地存的不一致：补写一份给服务端；
+    // 服务端组件是按 cookie 渲染的，本地存的语言和它对不上时要重新拉一次 RSC 才会换语言
+    const raw = document.cookie.split("; ").find((c) => c.startsWith(`${LOCALE_COOKIE}=`));
+    const cookieVal = raw ? raw.slice(LOCALE_COOKIE.length + 1) : undefined;
+    if (cookieVal !== initial) {
       document.cookie = `${LOCALE_COOKIE}=${encodeURIComponent(initial)}; path=/; max-age=31536000; samesite=lax`;
+      if (cookieVal !== undefined || initial !== DEFAULT_LOCALE) router.refresh();
     }
-  }, []);
+  }, [router]);
 
-  const setLocale = useCallback((l: Locale) => {
-    persistLocale(l);
-  }, []);
+  const setLocale = useCallback(
+    (l: Locale) => {
+      persistLocale(l);
+      // 客户端文案由 context 即时换；服务端渲染的文案（页面正文、metadata）按 cookie 走，刷新 RSC 立即生效
+      router.refresh();
+    },
+    [router],
+  );
 
   const t = useCallback(
     (key: keyof Dict, params?: Record<string, string | number>) => translate(locale, key, params),
