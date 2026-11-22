@@ -6,6 +6,8 @@ services:
   journal:
     build:
       context: .
+      # PWA 资产（service-worker.js / offline.html / 图标）随 public/ 进镜像，
+      # manifest 与 SW 的 no-cache 头在构建产物里，Dockerfile 构建后有断言兜底
       args:
         # NEXT_PUBLIC_* 构建期内联，改动后需要 docker compose up -d --build 重新构建
         NEXT_PUBLIC_READER_NAME: ${NEXT_PUBLIC_READER_NAME:-}
@@ -25,11 +27,12 @@ services:
       # journal.db + media/ 持久化；备份依旧 = 备份这个 data/ 目录
       - ./data:/app/data
     healthcheck:
+      # 首页可达（3xx/4xx 算健康，可能 302 到锁页）+ PWA：/service-worker.js 必须 200
       test:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"
+        - "Promise.all([fetch('http://127.0.0.1:3000/').then(r=>r.status<500),fetch('http://127.0.0.1:3000/service-worker.js').then(r=>r.status===200)]).then(o=>process.exit(o.every(Boolean)?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       retries: 3

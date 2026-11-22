@@ -289,6 +289,7 @@ docker compose up -d --build       # 构建镜像并启动
 ```
 
 - 镜像分多阶段构建（Next.js standalone 输出），运行层自带 ffmpeg、以非 root 运行，带健康检查；
+- PWA 随构建进镜像：`public/` 的 Service Worker、图标、离线页与 manifest 路由都会打进镜像（构建时有断言，缺了直接 build 失败），健康检查同时确认首页与 `/service-worker.js` 可达；
 - 页面只绑 `127.0.0.1:3000`，外网仍走宿主 Nginx/Caddy 反代 + HTTPS——[`deploy/nginx.conf.example`](deploy/nginx.conf.example) 原样可用，500MB 上传上限等配置不变；
 - **备份还是备份 `data/`**（`journal.db` + `media/`）：它以挂载卷形式进容器，已有的 `data/` 目录放进去就接着用；
 - 日常：升级 `git pull && docker compose up -d --build`，看日志 `docker compose logs -f`，重启 `docker compose restart`；
