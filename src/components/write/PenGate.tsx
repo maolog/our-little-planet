@@ -4,10 +4,12 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { PenNib } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** /write 的作者口令门。笔是限时的：不勾「这台设备是我自己的」，
  *  默认几小时后自动收回（在别人手机上拿过一次笔也不会一直挂着） */
 export function PenGate({ demoHint }: { demoHint?: string }) {
+  const t = useT();
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
@@ -30,13 +32,13 @@ export function PenGate({ demoHint }: { demoHint?: string }) {
         window.location.reload();
         return;
       }
-      setError("这不是作者的口令哦");
+      setError(t("gate.error.wrong"));
       setShake(true);
       setTimeout(() => setShake(false), 500);
       inputRef.current?.focus();
       inputRef.current?.select();
     } catch {
-      setError("网络好像打了个盹，再试一次？");
+      setError(t("gate.error.network"));
     } finally {
       setBusy(false);
     }
@@ -48,17 +50,17 @@ export function PenGate({ demoHint }: { demoHint?: string }) {
         <p className="text-rose-deep">
           <PenNib weight="fill" className="mx-auto size-9" />
         </p>
-        <h1 className="mt-4 text-3xl font-bold">这里是作者专座</h1>
-        <p className="mt-3 text-ink-soft">输入只有你知道的口令，拿起笔</p>
+        <h1 className="mt-4 text-3xl font-bold">{t("gate.title")}</h1>
+        <p className="mt-3 text-ink-soft">{t("gate.sub")}</p>
         <input
           ref={inputRef}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="作者口令"
+          placeholder={t("gate.placeholder")}
           autoFocus
           autoComplete="off"
-          aria-label="作者口令"
+          aria-label={t("gate.aria")}
           className={cn(
             "mt-7 w-full rounded-2xl border-2 bg-paper px-4 py-3 text-center text-lg tracking-[0.2em] placeholder:tracking-normal placeholder:text-ink-soft/50",
             error ? "border-rose-deep/60" : "border-ink/15 focus:border-rose"
@@ -75,13 +77,13 @@ export function PenGate({ demoHint }: { demoHint?: string }) {
             onChange={(e) => setRemember(e.target.checked)}
             className="size-4 accent-rose-deep"
           />
-          这台设备是我自己的（30 天内不用再输）
+          {t("gate.remember")}
         </label>
         <button type="submit" disabled={busy || password.length === 0} className="btn-primary mt-5 w-full justify-center">
-          {busy ? "正在拿笔…" : "拿起笔"}
+          {busy ? t("gate.busy") : t("gate.submit")}
         </button>
         <Link href="/" className="link-soft mt-5 text-sm">
-          我不是作者，回到手账
+          {t("gate.leave")}
         </Link>
       </form>
     </div>

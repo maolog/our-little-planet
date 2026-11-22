@@ -10,13 +10,19 @@ import { Sticker } from "@/components/journal/Sticker";
 import { AddEntryButton } from "@/components/AddEntryButton";
 import { GuestLock } from "@/components/GuestLock";
 import { recordGuestVisitFor } from "@/lib/visitors";
+import { getLocale, tWith } from "@/i18n/server";
+import type { Dict } from "@/i18n";
 
-export const metadata: Metadata = { title: "信箱" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: tWith(await getLocale(), "meta.letters") };
+}
 
 export default async function LettersPage() {
   await recordGuestVisitFor("/letters");
+  const locale = await getLocale();
+  const t = (key: keyof Dict, params?: Record<string, string | number>) => tWith(locale, key, params);
   const [reader, author, settings] = [await isReader(), await isAuthor(), getSettings()];
-  if (!reader && !sectionOpen(settings, "letters")) return <GuestLock section="信箱" />;
+  if (!reader && !sectionOpen(settings, "letters")) return <GuestLock section={t("nav.tab.letters")} />;
 
   // 访客只看标了「公开」的信；她寄回来的评论只属于她，访客看不到
   const letters = listEntries({ type: "letter", guest: !reader });
@@ -25,12 +31,12 @@ export default async function LettersPage() {
   return (
     <div className="py-10">
       <header className="mb-10 text-center">
-        <h1 className="text-4xl font-bold">信箱</h1>
-        <p className="mt-3 text-ink-soft">点一下信封，把信拆开</p>
+        <h1 className="text-4xl font-bold">{t("meta.letters")}</h1>
+        <p className="mt-3 text-ink-soft">{t("letter.subtitle")}</p>
         <DoodleDivider variant="hearts" className="mx-auto mt-6 w-28" />
         {author && (
           <div className="mt-6">
-            <AddEntryButton href="/write?type=letter" icon="letter" label="再写一封信" />
+            <AddEntryButton href="/write?type=letter" icon="letter" label={t("letter.add")} />
           </div>
         )}
       </header>
@@ -38,10 +44,10 @@ export default async function LettersPage() {
       {letters.length === 0 ? (
         <div className="card-paper mx-auto mt-16 flex max-w-md flex-col items-center gap-4 py-14 text-center">
           <Sticker name="cloud" className="size-12 text-mist" />
-          <p className="text-ink-soft">{reader ? "信箱还空着，第一封信在等你落笔" : "能给你看的信还在路上"}</p>
+          <p className="text-ink-soft">{reader ? t("letter.emptyReader") : t("letter.emptyGuest")}</p>
           {author && (
             <Link href="/write?type=letter" className="btn-primary">
-              写第一封信
+              {t("letter.firstWrite")}
             </Link>
           )}
         </div>

@@ -7,6 +7,7 @@ import { useToast } from "@/components/Toast";
 import { VoiceNote } from "@/components/journal/VoiceNote";
 import { extOfAudioMime, pickRecorderMime, probeAudioDuration } from "@/lib/audio";
 import type { MediaDTO } from "@/lib/client-upload";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 一条语音草稿：新录的（file）或已有条目上的（existing） */
 export type VoiceDraft = {
@@ -35,6 +36,7 @@ export function VoiceRecorder({
   disabled?: boolean;
 }) {
   const toast = useToast();
+  const t = useT();
   const [recording, setRecording] = useState(false);
   const [secs, setSecs] = useState(0);
   const [error, setError] = useState("");
@@ -62,7 +64,7 @@ export function VoiceRecorder({
   async function start() {
     setError("");
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setError("这个浏览器录不了音（需要 Safari / Chrome，且用 https 或 localhost 打开），可以先选一个音频文件");
+      setError(t("voice.noSupport"));
       return;
     }
     try {
@@ -85,7 +87,7 @@ export function VoiceRecorder({
         setRecording(false);
         if (!keepRef.current) return; // 取消：直接丢弃
         if (seconds < 1 || chunksRef.current.length === 0) {
-          setError("太短啦，什么都没录到");
+          setError(t("voice.tooShort"));
           return;
         }
         const cleanMime = (rec.mimeType || "audio/mp4").split(";")[0];
@@ -109,12 +111,12 @@ export function VoiceRecorder({
         secsRef.current = next;
         setSecs(next);
         if (next >= MAX_SECONDS) {
-          toast(`一段最多录 ${MAX_SECONDS / 60} 分钟，先到这里啦`);
+          toast(t("voice.tooLong", { n: MAX_SECONDS / 60 }));
           stop(true);
         }
       }, 1000);
     } catch {
-      setError("拿不到麦克风：看看浏览器的麦克风权限给了没，或者直接选一个音频文件");
+      setError(t("voice.noMic"));
     }
   }
 
@@ -134,11 +136,11 @@ export function VoiceRecorder({
     if (fileInput.current) fileInput.current.value = "";
     if (!f) return;
     if (!f.type.startsWith("audio/") && !/\.(m4a|mp3|aac|wav|webm|ogg|flac)$/i.test(f.name)) {
-      setError("只收音频文件（m4a / mp3 / wav…）");
+      setError(t("voice.badFile"));
       return;
     }
     if (f.size > 100 * 1024 * 1024) {
-      setError("这个音频太大了（超过 100MB）");
+      setError(t("voice.tooBig"));
       return;
     }
     setError("");
@@ -161,7 +163,7 @@ export function VoiceRecorder({
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-rose/40 bg-rose-soft/40 px-4 py-3">
         <span className="flex items-center gap-2 font-round text-sm font-bold tabular-nums tracking-wider text-rose-deep">
           <span className="size-2.5 animate-pulse rounded-full bg-rose-deep" />
-          录音中 {fmtClock(secs)}
+          {t("voice.recording", { time: fmtClock(secs) })}
         </span>
         <span className="voice-wave text-rose-deep" data-playing="true" aria-hidden>
           <span />
@@ -176,14 +178,14 @@ export function VoiceRecorder({
           className="flex items-center gap-1.5 rounded-full bg-rose-deep px-3.5 py-1.5 text-sm font-bold text-paper transition hover:opacity-90 active:scale-95"
         >
           <Stop weight="fill" className="size-4" />
-          录好了
+          {t("voice.done")}
         </button>
         <button
           type="button"
           onClick={() => stop(false)}
           className="rounded-full border border-ink/20 px-3.5 py-1.5 text-sm font-bold text-ink-soft transition hover:bg-ink/5 active:scale-95"
         >
-          取消
+          {t("action.cancel")}
         </button>
       </div>
     );
@@ -195,7 +197,7 @@ export function VoiceRecorder({
         <div className="flex flex-wrap items-center gap-2.5">
           <VoiceNote key={value.key} src={value.url} duration={value.duration} />
           {value.existing && (
-            <span className="font-round text-xs tracking-wider text-ink-soft/70">已存的一段</span>
+            <span className="font-round text-xs tracking-wider text-ink-soft/70">{t("voice.existing")}</span>
           )}
           <span className="flex-1" />
           <button
@@ -205,7 +207,7 @@ export function VoiceRecorder({
             className="flex items-center gap-1 rounded-full border border-ink/15 px-3 py-1.5 text-xs font-bold text-ink-soft transition hover:bg-ink/5 hover:text-ink active:scale-95 disabled:opacity-50"
           >
             <ArrowsClockwise className="size-3.5" />
-            重录
+            {t("voice.reRecord")}
           </button>
           <button
             type="button"
@@ -214,7 +216,7 @@ export function VoiceRecorder({
             className="flex items-center gap-1 rounded-full border border-ink/15 px-3 py-1.5 text-xs font-bold text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep active:scale-95 disabled:opacity-50"
           >
             <TrashSimple className="size-3.5" />
-            删掉
+            {t("voice.remove")}
           </button>
         </div>
         {error && <p className="text-xs font-bold text-rose-deep">{error}</p>}
@@ -235,7 +237,7 @@ export function VoiceRecorder({
           )}
         >
           <Microphone weight="bold" className="size-5 text-rose-deep" />
-          录一段语音
+          {t("voice.start")}
         </button>
         <button
           type="button"
@@ -244,7 +246,7 @@ export function VoiceRecorder({
           className="flex items-center gap-2 rounded-2xl border-2 border-dashed border-ink/20 px-4 py-3 text-sm font-bold text-ink-soft transition hover:border-rose hover:bg-rose-soft/30 hover:text-ink disabled:opacity-50"
         >
           <FileAudio weight="bold" className="size-5 text-rose-deep" />
-          选音频文件
+          {t("voice.pick")}
         </button>
         <input
           ref={fileInput}
@@ -255,7 +257,7 @@ export function VoiceRecorder({
         />
       </div>
       <p className="mt-2 px-1 text-xs leading-relaxed text-ink-soft/80">
-        可以只录语音、只写文字，或者两个都来（比如「一周年我想对她说的话」）；一段最多 5 分钟。
+        {t("voice.hint", { n: MAX_SECONDS / 60 })}
       </p>
       {error && <p className="mt-1.5 px-1 text-xs font-bold text-rose-deep">{error}</p>}
     </div>

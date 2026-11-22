@@ -1,6 +1,6 @@
 import { db, type MediaRow } from "./db";
 import { newId, nowISO, todayLocal } from "./ids";
-import { publicMedia, getMediaById } from "./media";
+import { publicMedia } from "./media";
 
 export type Egg = {
   id: string;
@@ -123,12 +123,19 @@ export function deleteEgg(id: string): void {
   db.prepare("DELETE FROM eggs WHERE id = ?").run(id);
 }
 
-/** 彩蛋里精选的照片/视频（按选定顺序，跳过已不存在的） */
+/** 彩蛋里精选的照片/视频（按选定顺序，跳过已不存在的）。
+ *  一次 IN 查询取回（原来逐个 getMediaById） */
 export function eggPhotos(egg: Egg): EggPhoto[] {
-  return egg.photoIds
-    .map((pid) => getMediaById(pid))
-    .filter((m): m is MediaRow => Boolean(m) && (m!.kind === "photo" || m!.kind === "video"))
-    .map((m) => publicMedia(m));
+  if (egg.photoIds.length === 0) return [];
+  const ph = egg.photoIds.map(() => "?").join(",");
+  const rows = db.prepare(`SELECT * FROM media WHERE id IN (${ph})`).all(...egg.photoIds) as MediaRow[];
+  const byId = new Map(rows.map((m) => [m.id, m]));
+  const out: EggPhoto[] = [];
+  for (const pid of egg.photoIds) {
+    const m = byId.get(pid);
+    if (m && (m.kind === "photo" || m.kind === "video")) out.push(publicMedia(m));
+  }
+  return out;
 }
 
 // ---------- 旧版 someday 迁移 ----------

@@ -5,6 +5,7 @@ import { PolaroidCard } from "@/components/journal/PolaroidCard";
 import { Lightbox, type LightboxPhoto } from "@/components/album/Lightbox";
 import { tiltOf } from "@/lib/tilt";
 import type { PublicMedia } from "@/lib/entries";
+import { useT } from "@/i18n/LocaleProvider";
 
 function photoGridClass(n: number): string {
   if (n === 1) return "mt-6 max-w-xs";
@@ -25,6 +26,7 @@ export function JournalMediaGrid({
   tone: string;
   author?: boolean;
 }) {
+  const t = useT();
   const [items, setItems] = useState(media);
   const [index, setIndex] = useState<number | null>(null);
 
@@ -62,11 +64,11 @@ export function JournalMediaGrid({
             {m.caption && <p className="px-3 py-2 font-script text-xl text-ink/90">{m.caption}</p>}
           </div>
         ) : (
-          <button key={m.id} type="button" onClick={() => setIndex(lightboxIndexOf(i))} className="block w-full cursor-zoom-in" aria-label={m.caption ?? "放大看这张照片"}>
+          <button key={m.id} type="button" onClick={() => setIndex(lightboxIndexOf(i))} className="block w-full cursor-zoom-in" aria-label={m.caption ?? t("journal.zoomIn")}>
             <PolaroidCard
               src={m.thumbUrl ?? m.url}
               caption={m.caption}
-              alt={m.caption ?? "我们的照片"}
+              alt={m.caption ?? t("journal.ourPhoto")}
               tilt={tiltOf(m.id, 2)}
               tone={tone as never}
               tape="none"

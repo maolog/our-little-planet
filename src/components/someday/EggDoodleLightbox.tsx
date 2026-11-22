@@ -6,6 +6,7 @@ import { CaretLeft, CaretRight, Check, PencilSimple, Sparkle, X } from "@phospho
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/Toast";
 import { CaptionQuickEdit } from "@/components/CaptionQuickEdit";
+import { useT } from "@/i18n/LocaleProvider";
 
 export type EggPhotoItem = {
   id: string;
@@ -77,6 +78,7 @@ export function EggDoodleLightbox({
   onCaptionChange?: (id: string, caption: string | null) => void;
 }) {
   const toast = useToast();
+  const t = useT();
   const reduce = useReducedMotion();
   const open = index !== null && index >= 0 && index < photos.length;
   const photo = open ? photos[index!] : null;
@@ -213,15 +215,15 @@ export function EggDoodleLightbox({
         body: JSON.stringify({ photoId: photo!.id, strokes }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "留言没存上");
+      if (!res.ok) throw new Error(data.error ?? t("egg.doodleSaveFail"));
       setSavedStrokes((prev) => [...prev, ...strokes]);
       setSessionStrokes([]);
       setCounts((m) => new Map(m).set(photo!.id, (m.get(photo!.id) ?? 0) + 1));
       setMode("view");
-      toast("你的话留在这张照片上了");
+      toast(t("egg.doodleSaved"));
       onDoodleSaved?.(photo!.id);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "留言没存上", "error");
+      toast(e instanceof Error ? e.message : t("egg.doodleSaveFail"), "error");
     } finally {
       setSaving(false);
     }
@@ -262,7 +264,7 @@ export function EggDoodleLightbox({
                   />
                   {videoErr && (
                     <p className="mt-3 max-w-md text-center font-round text-sm leading-relaxed text-paper/80">
-                      这个浏览器放不了这段视频{photo.hevc ? "（HEVC 编码）" : ""}，用 iPhone / Mac 打开没问题。
+                      {photo.hevc ? t("album.videoBrokenHevc") : t("album.videoBroken")}
                     </p>
                   )}
                 </>
@@ -270,7 +272,7 @@ export function EggDoodleLightbox({
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={photo.url}
-                  alt={photo.caption ?? "我们的照片"}
+                  alt={photo.caption ?? t("journal.ourPhoto")}
                   draggable={false}
                   onLoad={() => setImgLoaded((n) => n + 1)}
                   className="max-h-[68vh] max-w-full rounded-lg bg-white p-2.5 shadow-lifted"
@@ -301,7 +303,7 @@ export function EggDoodleLightbox({
               {liveWarming && (
                 <span className="pointer-events-none absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-ink/55 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] text-paper backdrop-blur">
                   <span className="size-1.5 animate-pulse rounded-full bg-butter" />
-                  实况加载中
+                  {t("album.liveLoading")}
                 </span>
               )}
               {!isVideo && (
@@ -342,7 +344,7 @@ export function EggDoodleLightbox({
               {!isVideo && counts.get(photo.id) ? (
                 <span className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-ink/55 px-2.5 py-1 text-[11px] font-bold tracking-wider text-paper backdrop-blur">
                   <Sparkle weight="fill" className="size-3 text-butter" />
-                  有 {counts.get(photo.id)} 句留言
+                  {t("egg.doodleCount", { n: counts.get(photo.id)! })}
                 </span>
               ) : null}
             </div>
@@ -374,7 +376,7 @@ export function EggDoodleLightbox({
                 <button
                   key={p.color}
                   type="button"
-                  aria-label={`画笔颜色 ${i + 1}`}
+                  aria-label={t("egg.penColor", { n: i + 1 })}
                   onClick={() => setPen(i)}
                   className={cn(
                     "size-7 rounded-full border-2 transition",
@@ -388,7 +390,7 @@ export function EggDoodleLightbox({
                 <button
                   key={i}
                   type="button"
-                  aria-label={`粗细 ${i + 1}`}
+                  aria-label={t("egg.penThick", { n: i + 1 })}
                   onClick={() => setThick(i)}
                   className={cn("grid size-7 place-items-center rounded-full transition", thick === i ? "bg-ink/10" : "opacity-60")}
                 >
@@ -401,11 +403,11 @@ export function EggDoodleLightbox({
                 onClick={() => setSessionStrokes((s) => s.slice(0, -1))}
                 className="rounded-full px-3 py-1 text-sm font-bold text-ink-soft transition hover:bg-ink/5"
               >
-                撤销
+                {t("egg.undo")}
               </button>
               <button type="button" disabled={saving} onClick={() => void finishDrawing()} className="btn-primary px-4 py-1.5 text-sm">
                 <Check weight="bold" className="size-4" />
-                {saving ? "保存中…" : "留好了"}
+                {saving ? t("action.saving") : t("egg.doodleDone")}
               </button>
             </div>
 
@@ -415,7 +417,7 @@ export function EggDoodleLightbox({
                 {photo.liveVideo && !isVideo && (
                   <button type="button" onClick={toggleLive} className="btn-ghost px-5 py-2 text-sm">
                     <CaretRight weight="bold" className="size-4" />
-                    {liveOn ? "停止" : "LIVE 回放"}
+                    {liveOn ? t("album.liveStop") : t("album.livePlay")}
                   </button>
                 )}
                 {!isVideo && (
@@ -430,7 +432,7 @@ export function EggDoodleLightbox({
                   className="btn-primary px-5 py-2 text-sm"
                 >
                   <PencilSimple weight="bold" className="size-4" />
-                  {counts.get(photo.id) ? "再写一句" : "在这张照片上写句话"}
+                  {counts.get(photo.id) ? t("egg.writeMore") : t("egg.writeOnPhoto")}
                 </button>
                 )}
               </div>
@@ -441,7 +443,7 @@ export function EggDoodleLightbox({
             <>
               <button
                 type="button"
-                aria-label="上一张"
+                aria-label={t("egg.prev")}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (index !== null) onNav((index - 1 + photos.length) % photos.length);
@@ -452,7 +454,7 @@ export function EggDoodleLightbox({
               </button>
               <button
                 type="button"
-                aria-label="下一张"
+                aria-label={t("egg.next")}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (index !== null) onNav((index + 1) % photos.length);
@@ -465,7 +467,7 @@ export function EggDoodleLightbox({
           )}
           <button
             type="button"
-            aria-label="关闭"
+            aria-label={t("action.close")}
             onClick={onClose}
             className="absolute right-4 top-4 grid size-11 place-items-center rounded-full bg-paper/15 text-paper backdrop-blur transition hover:bg-paper/30"
           >

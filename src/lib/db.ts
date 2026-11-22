@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { DEMO_RESET_MINUTES, IS_DEMO } from "./demo";
+import { rebuildEntryRefs } from "./entryRefs";
 
 export const DATA_DIR = path.join(process.cwd(), "data");
 export const MEDIA_DIR = path.join(DATA_DIR, "media");
@@ -48,6 +49,12 @@ CREATE TABLE IF NOT EXISTS media (
 );
 CREATE INDEX IF NOT EXISTS idx_media_entry ON media(entry_id, sort);
 CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(entry_date DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_media_live_video ON media(live_video_id);
+CREATE TABLE IF NOT EXISTS entry_media_refs ( -- 条目引用的媒体（ref_media + 拼贴 layout 抽出来）：
+  media_id TEXT NOT NULL,                    -- 访客可见性判断按 media_id 点查，替代 ref_media/layout 的 LIKE 全表扫描
+  entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+  PRIMARY KEY (media_id, entry_id)
+);
 CREATE TABLE IF NOT EXISTS milestones ( -- 大事记：手动录入的里程碑（第一次 xxx）
   id         TEXT PRIMARY KEY,
   title      TEXT NOT NULL,
@@ -225,14 +232,19 @@ function getDb(): Database.Database {
       // 演示沙箱：整本手账跑在内存里，从种好的磁盘快照恢复并定时重置。
       // 磁盘上的 journal.db 只作为只读快照源，演示站的任何写入都碰不到它
       restoreDemoSnapshot(db);
+      rebuildEntryRefs(db); // 引用索引跟着快照重建（快照库可能还没这张表）
       const timer = setInterval(() => {
         try {
           restoreDemoSnapshot(db);
+          rebuildEntryRefs(db);
         } catch (e) {
           console.error("[demo] 重置演示数据失败：", e);
         }
       }, DEMO_RESET_MINUTES * 60_000);
       timer.unref();
+    } else {
+      // 引用索引启动时全量重建：兜住漏同步的写入路径，老库/seed 数据一次补齐
+      rebuildEntryRefs(db);
     }
     globalThis.__journalDb = db;
   }
@@ -244,6 +256,7 @@ const DEMO_SNAPSHOT_TABLES = [
   "settings",
   "tags",
   "entries",
+  "entry_media_refs",
   "media",
   "milestones",
   "eggs",

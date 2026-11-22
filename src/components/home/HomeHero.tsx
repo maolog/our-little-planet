@@ -9,6 +9,7 @@ import { FlipPolaroid } from "@/components/home/FlipPolaroid";
 import { StickyNote } from "@/components/journal/StickyNote";
 import { Sticker } from "@/components/journal/Sticker";
 import { Lightbox } from "@/components/album/Lightbox";
+import { useT } from "@/i18n/LocaleProvider";
 
 export type HeroQuote = { id: string; body: string; speaker: string | null };
 
@@ -53,6 +54,7 @@ export function HomeHero({ photos, quotes, author = false }: { photos: AlbumPhot
 
   const photo = pool[idx];
   const quote = quotes[qIdx];
+  const t = useT();
 
   return (
     <div
@@ -77,7 +79,7 @@ export function HomeHero({ photos, quotes, author = false }: { photos: AlbumPhot
               caption={photo.caption}
               note={photo.note}
               date={photo.entryDate}
-              alt={photo.caption ?? "随机翻到的一张拍立得"}
+              alt={photo.caption ?? t("home.hero.alt")}
               tilt={tiltOf(photo.id, 3)}
               tone={pickOf(photo.id, TAPE_TONES)}
               liveVideo={photo.liveVideo}
@@ -96,8 +98,8 @@ export function HomeHero({ photos, quotes, author = false }: { photos: AlbumPhot
             key={quote.id}
             role="button"
             tabIndex={0}
-            aria-label="再听一句"
-            title="再听一句"
+            aria-label={t("home.hero.again")}
+            title={t("home.hero.again")}
             initial={{ opacity: 0, rotate: 8, y: 10 }}
             animate={{ opacity: 1, rotate: 0, y: 0 }}
             exit={{ opacity: 0, rotate: -6, y: 8 }}
@@ -120,7 +122,7 @@ export function HomeHero({ photos, quotes, author = false }: { photos: AlbumPhot
               {quotes.length > 1 && (
                 <p className="mt-2 flex items-center gap-1 font-round text-[11px] font-bold tracking-wider text-ink/45">
                   <ArrowClockwise weight="bold" className="size-3" />
-                  再听一句
+                  {t("home.hero.again")}
                 </p>
               )}
             </StickyNote>

@@ -12,6 +12,7 @@ import {
   type Icon,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 滚到眼前再开动数字（系统开了「减少动态」就直接给终值） */
 function CountUp({ to, run }: { to: number; run: boolean }) {
@@ -31,6 +32,7 @@ function CountUp({ to, run }: { to: number; run: boolean }) {
 
 /** 甜度计：半圆表盘，指针甩到头还在红区里抖——量程不足，怪不得我们 */
 function SweetGauge({ run }: { run: boolean }) {
+  const t = useT();
   const reduced = useReducedMotion();
   const R = 78;
   const ticks = [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180];
@@ -45,10 +47,10 @@ function SweetGauge({ run }: { run: boolean }) {
         <path d="M 22 100 A 78 78 0 0 1 178 100" fill="none" stroke="var(--color-ink)" strokeOpacity="0.25" strokeWidth="2.5" strokeLinecap="round" />
         {/* 红区：量程尽头 */}
         <path d="M 167.5 61 A 78 78 0 0 1 178 100" fill="none" stroke="var(--color-rose-deep)" strokeOpacity="0.8" strokeWidth="4" strokeLinecap="round" />
-        {ticks.map((t) => {
-          const [x1, y1] = pt(t, R);
-          const [x2, y2] = pt(t, R - 9);
-          return <line key={t} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--color-ink)" strokeOpacity="0.35" strokeWidth={t % 45 === 0 ? 2 : 1} strokeLinecap="round" />;
+        {ticks.map((tick) => {
+          const [x1, y1] = pt(tick, R);
+          const [x2, y2] = pt(tick, R - 9);
+          return <line key={tick} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--color-ink)" strokeOpacity="0.35" strokeWidth={tick % 45 === 0 ? 2 : 1} strokeLinecap="round" />;
         })}
         <motion.g
           initial={{ rotate: -88 }}
@@ -61,8 +63,8 @@ function SweetGauge({ run }: { run: boolean }) {
         <circle cx="100" cy="100" r="5.5" fill="var(--color-ink)" />
         <circle cx="100" cy="100" r="2" fill="var(--color-paper)" />
       </svg>
-      <span className="absolute right-0 top-[72%] font-round text-[9px] font-bold tracking-[0.1em] text-rose-deep/80">量程不足</span>
-      <p className="mt-1 text-center font-round text-[10px] tracking-[0.3em] text-ink-soft/70">综合糖分</p>
+      <span className="absolute right-0 top-[72%] font-round text-[9px] font-bold tracking-[0.1em] text-rose-deep/80">{t("settle.range")}</span>
+      <p className="mt-1 text-center font-round text-[10px] tracking-[0.3em] text-ink-soft/70">{t("settle.total")}</p>
     </div>
   );
 }
@@ -116,12 +118,13 @@ export function SeasonSettlement({
   quotes: number;
   hasStart: boolean;
 }) {
+  const t = useT();
   const ref = useRef<HTMLElement>(null);
   const inView = useInView(ref, { once: true, margin: "-15% 0px" });
   const empty = eps === 0 && shots === 0;
 
   return (
-    <section ref={ref} aria-label="本季糖分结算单" className="relative mx-auto mt-24 w-full max-w-md px-2 sm:px-0">
+    <section ref={ref} aria-label={t("settle.title")} className="relative mx-auto mt-24 w-full max-w-md px-2 sm:px-0">
       <motion.div
         className="card-paper relative px-5 py-6 sm:px-7"
         initial={{ opacity: 0, y: 26 }}
@@ -131,32 +134,32 @@ export function SeasonSettlement({
         {/* 撕票线：剪刀压着虚线，像一张撕下来的结算单 */}
         <Scissors weight="fill" className="absolute -top-2.5 left-5 size-5 -rotate-90 text-ink/25" aria-hidden />
         <h2 className="text-center font-script text-3xl leading-tight text-rose-deep">
-          {empty ? "节目待开机" : "本季糖分结算单"}
+          {empty ? t("settle.empty") : t("settle.title")}
         </h2>
         <p className="mt-1 text-center font-round text-[9px] tracking-[0.32em] text-ink-soft/70">
-          SWEETNESS REPORT · 全程未删减
+          {t("settle.report")}
         </p>
 
         {empty ? (
           <p className="mt-6 pb-2 text-center font-hand text-sm text-ink-soft">
-            还没有正片，先去记一件大事，节目组马上开机。
+            {t("settle.noEpisode")}
           </p>
         ) : (
           <>
             <ul className="mt-5">
-              <StatRow icon={FilmSlate} label="已播出" note="全程高能无冷场" delay={0.1} show={inView}>
-                <CountUp to={eps} run={inView} /> 集
+              <StatRow icon={FilmSlate} label={t("settle.labelAired")} note={t("settle.noteAired")} delay={0.1} show={inView}>
+                <CountUp to={eps} run={inView} /> {t("settle.unitEp")}
               </StatRow>
               {hasStart && days !== null && (
-                <StatRow icon={CalendarHeart} label="连更天数" note="仍在持续更新" delay={0.22} show={inView}>
-                  第 <CountUp to={days} run={inView} /> 天
+                <StatRow icon={CalendarHeart} label={t("settle.labelStreak")} note={t("settle.noteStreak")} delay={0.22} show={inView}>
+                  {t("settle.dayPrefix")} <CountUp to={days} run={inView} /> {t("settle.daySuffix")}
                 </StatRow>
               )}
-              <StatRow icon={Images} label="名场面镜头" note="未删减放送" delay={0.34} show={inView}>
-                <CountUp to={shots} run={inView} /> 个
+              <StatRow icon={Images} label={t("settle.labelShots")} note={t("settle.noteShots")} delay={0.34} show={inView}>
+                <CountUp to={shots} run={inView} /> {t("settle.unitShot")}
               </StatRow>
-              <StatRow icon={ChatsCircle} label="金句收录" note="已建语录馆" delay={0.46} show={inView}>
-                <CountUp to={quotes} run={inView} /> 句
+              <StatRow icon={ChatsCircle} label={t("settle.labelQuotes")} note={t("settle.noteQuotes")} delay={0.46} show={inView}>
+                <CountUp to={quotes} run={inView} /> {t("settle.unitQuote")}
               </StatRow>
             </ul>
 
@@ -178,8 +181,8 @@ export function SeasonSettlement({
               <span className="flex items-center gap-2.5">
                 <Star weight="fill" className="size-4.5 shrink-0 text-butter" />
                 <span>
-                  <span className="block font-round text-sm font-semibold text-ink">观察员评分</span>
-                  <span className="block font-hand text-xs text-ink-soft">不允许打更低</span>
+                  <span className="block font-round text-sm font-semibold text-ink">{t("settle.score")}</span>
+                  <span className="block font-hand text-xs text-ink-soft">{t("settle.scoreNote")}</span>
                 </span>
               </span>
               <span className="font-round text-lg font-bold leading-none text-ink">10.0 / 10</span>
@@ -196,13 +199,13 @@ export function SeasonSettlement({
             transition={{ delay: 1.15, type: "spring", stiffness: 260, damping: 15 }}
             aria-hidden
           >
-            <span className="font-script text-3xl leading-none">甜</span>
-            <span className="mt-1 font-round text-[9px] leading-none tracking-[0.25em] opacity-70">已盖章</span>
+            <span className="font-script text-3xl leading-none">{t("settle.sweet")}</span>
+            <span className="mt-1 font-round text-[9px] leading-none tracking-[0.25em] opacity-70">{t("settle.stamped")}</span>
           </motion.span>
         )}
 
         <p className={cn("mt-5 text-center font-hand text-sm text-ink-soft", empty ? "sr-only" : "")}>
-          下一季 · 已续订 —— 由「憧憬」栏目组联合出品
+          {t("settle.next")}
         </p>
       </motion.div>
     </section>

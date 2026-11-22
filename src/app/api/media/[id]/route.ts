@@ -1,5 +1,7 @@
-import { readFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getMediaById, mediaPath, posterKey, posterName, thumbKey, thumbName, type MediaRow } from "@/lib/media";
@@ -42,16 +44,18 @@ function guestCanSeeMedia(row: MediaRow): boolean {
       .get(row.entry_id, today) as { visibility: string } | undefined;
     if (entry?.visibility === "public") return true;
   }
-  // 被公开页引用（ref_media / 自由拼贴 layout），无论它自己挂在哪一页
-  const needle = `%"${row.id}"%`;
-  const hit = db
+  // 被公开页引用（ref_media / 自由拼贴 layout），无论它自己挂在哪一页。
+  // 查 entry_media_refs 派生索引（启动时全量重建、写入时同步），
+  // 一次主键点查替代 ref_media/layout 的 LIKE 全表扫描
+  const refHit = db
     .prepare(
-      `SELECT 1 FROM entries
-       WHERE visibility = 'public' AND published = 1 AND (reveal_at IS NULL OR reveal_at <= ?)
-         AND (ref_media LIKE ? OR layout LIKE ?) LIMIT 1`
+      `SELECT 1 FROM entry_media_refs r JOIN entries e ON e.id = r.entry_id
+       WHERE r.media_id = ?
+         AND e.visibility = 'public' AND e.published = 1 AND (e.reveal_at IS NULL OR e.reveal_at <= ?)
+       LIMIT 1`
     )
-    .get(today, needle, needle);
-  if (hit) return true;
+    .get(row.id, today);
+  if (refHit) return true;
   // 公开且已首映的放映场次：它的完整视频和封面图对访客可见
   const screenHit = db
     .prepare(
@@ -244,10 +248,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     });
   }
 
-  const buf = await readFile(mediaPath(row)).catch(() => null);
-  if (!buf) return new NextResponse("Not Found", { status: 404 });
+  const filePath = mediaPath(row);
+  const st = await stat(filePath).catch(() => null);
+  if (!st) return new NextResponse("Not Found", { status: 404 });
 
-  const total = buf.byteLength;
+  const total = st.size;
   const range = req.headers.get("range");
   const baseHeaders: Record<string, string> = {
     "Content-Type": row.mime,
@@ -255,7 +260,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     "Accept-Ranges": "bytes",
   };
 
-  // 视频拖进度条需要 Range 支持
+  // 视频拖进度条需要 Range 支持。文件流式回给浏览器（边读边发）：
+  // 拖到哪段只读哪段，不再把整个视频先读进内存
   const m = range?.match(/bytes=(\d*)-(\d*)/);
   if (m) {
     const start = m[1] ? Number(m[1]) : 0;
@@ -266,18 +272,19 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         headers: { "Content-Range": `bytes */${total}` },
       });
     }
-    const chunk = buf.subarray(start, end + 1);
-    return new NextResponse(new Uint8Array(chunk), {
+    const body = Readable.toWeb(createReadStream(filePath, { start, end })) as unknown as ReadableStream<Uint8Array>;
+    return new NextResponse(body, {
       status: 206,
       headers: {
         ...baseHeaders,
         "Content-Range": `bytes ${start}-${end}/${total}`,
-        "Content-Length": String(chunk.byteLength),
+        "Content-Length": String(end - start + 1),
       },
     });
   }
 
-  return new NextResponse(new Uint8Array(buf), {
+  const body = Readable.toWeb(createReadStream(filePath)) as unknown as ReadableStream<Uint8Array>;
+  return new NextResponse(body, {
     status: 200,
     headers: { ...baseHeaders, "Content-Length": String(total) },
   });

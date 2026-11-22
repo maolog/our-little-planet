@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import { indentOnTab } from "@/lib/indent";
 import { MediaPicker } from "./MediaPicker";
 import type { AlbumPickItem } from "./MilestoneManager";
+import { useT } from "@/i18n/LocaleProvider";
 
 export type EggDTO = {
   id: string;
@@ -39,6 +40,7 @@ export function EggForm({
   onCancel: () => void;
 }) {
   const toast = useToast();
+  const t = useT();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [password, setPassword] = useState(initial?.password ?? "");
   const [revealDate, setRevealDate] = useState(initial?.revealDate ?? todayStr());
@@ -62,11 +64,11 @@ export function EggForm({
         body: JSON.stringify({ title, password, revealDate, letter, photoIds }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "保存失败了");
-      toast(initial ? "彩蛋已更新" : "彩蛋埋好了");
+      if (!res.ok) throw new Error(data.error ?? t("egg.saveFail"));
+      toast(initial ? t("egg.updated") : t("egg.buried"));
       onSaved();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "保存失败了";
+      const msg = e instanceof Error ? e.message : t("egg.saveFail");
       setError(msg);
       toast(msg, "error");
     } finally {
@@ -78,28 +80,28 @@ export function EggForm({
     <form onSubmit={submit} className="card-paper max-w-2xl space-y-6">
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label className="mb-1.5 block text-sm font-bold text-ink-soft">彩蛋标题</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldCls} placeholder="给她的礼物" />
+          <label className="mb-1.5 block text-sm font-bold text-ink-soft">{t("egg.title")}</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldCls} placeholder={t("egg.titlePh")} />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-bold text-ink-soft">揭晓日期（那天之前谁也打不开）</label>
+          <label className="mb-1.5 block text-sm font-bold text-ink-soft">{t("egg.revealDate")}</label>
           <input type="date" value={revealDate} onChange={(e) => setRevealDate(e.target.value)} className={fieldCls} />
-          <p className="mt-1.5 text-xs leading-relaxed text-ink-soft/80">选当天零点起就到期可以打开——想测全流程就选今天，正式送她记得换成那个特别的日子。</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-ink-soft/80">{t("egg.revealHint")}</p>
         </div>
       </div>
       <div>
-        <label className="mb-1.5 block text-sm font-bold text-ink-soft">彩蛋密码（别用解锁本子的那个）</label>
+        <label className="mb-1.5 block text-sm font-bold text-ink-soft">{t("egg.password")}</label>
         <input
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={fieldCls}
-          placeholder="只有她知道的那串字"
+          placeholder={t("egg.passwordPh")}
           autoComplete="off"
         />
       </div>
       <div>
         <label className="mb-1.5 block text-sm font-bold text-ink-soft">
-          到时候展示的信（支持空行分段、**粉色重点**、Tab 缩进）
+          {t("egg.letter")}
         </label>
         <textarea
           value={letter}
@@ -107,12 +109,12 @@ export function EggForm({
           onKeyDown={(e) => indentOnTab(e, setLetter)}
           rows={8}
           className={`${fieldCls} letter-paper resize-y rounded-lg border-butter leading-relaxed`}
-          placeholder="展信安。等到这一天，我有一件藏了很久的事想告诉你……"
+          placeholder={t("egg.letterPh")}
         />
       </div>
       <div>
         <p className="mb-1.5 text-sm font-bold text-ink-soft">
-          选进彩蛋的照片 / 视频（已选 {photoIds.length} 个，按点击顺序展示）
+          {t("egg.picked", { n: photoIds.length })}
         </p>
         <MediaPicker
           items={album}
@@ -120,7 +122,7 @@ export function EggForm({
           onToggle={(id) =>
             setPhotoIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
           }
-          emptyHint="本子还空着，先去记几页手账吧"
+          emptyHint={t("egg.emptyAlbum")}
         />
       </div>
 
@@ -129,11 +131,11 @@ export function EggForm({
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={busy} className="btn-primary">
           {busy ? <SpinnerGap className="size-5 animate-spin" /> : <Check weight="bold" className="size-5" />}
-          {initial ? "保存修改" : "埋下这个彩蛋"}
+          {initial ? t("egg.saveEdit") : t("egg.saveNew")}
         </button>
         <button type="button" onClick={onCancel} className="btn-ghost">
           <X className="size-4" />
-          取消
+          {t("action.cancel")}
         </button>
       </div>
     </form>

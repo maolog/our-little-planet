@@ -7,8 +7,10 @@ import { cn } from "@/lib/cn";
 import { daysBetween, nextSpecialDay, specialDaysInYear, type SpecialDay, type SpecialDayKind } from "@/lib/special-days";
 import { Sticker, type StickerName } from "@/components/journal/Sticker";
 import { WashiTape } from "@/components/journal/WashiTape";
+import { useLocale } from "@/i18n/LocaleProvider";
+import type { Dict } from "@/i18n";
 
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+const WD_KEYS = ["home.cal.wd0", "home.cal.wd1", "home.cal.wd2", "home.cal.wd3", "home.cal.wd4", "home.cal.wd5", "home.cal.wd6"] as const satisfies readonly (keyof Dict)[];
 
 /** 各种日子在列表里配的小贴纸 */
 const KIND_ICON: Record<SpecialDayKind, StickerName> = {
@@ -21,16 +23,17 @@ function fmtYmd(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-function countdownText(today: string, date: string): { text: string; isToday: boolean } {
+function countdownText(today: string, date: string, t: (key: keyof Dict, params?: Record<string, string | number>) => string): { text: string; isToday: boolean } {
   const diff = daysBetween(today, date);
-  if (diff === 0) return { text: "就是今天", isToday: true };
-  if (diff > 0) return { text: `还有 ${diff} 天`, isToday: false };
-  return { text: `已过 ${-diff} 天`, isToday: false };
+  if (diff === 0) return { text: t("home.cal.today"), isToday: true };
+  if (diff > 0) return { text: t("home.cal.inDays", { n: diff }), isToday: false };
+  return { text: t("home.cal.pastDays", { n: -diff }), isToday: false };
 }
 
 /** 首页「重要的日子」月历：从在一起的纪念日推整百天 / 520 / 1314 / 周年，
  *  再叠上情人节、520、元宵、七夕，翻月看哪天有记号、还差几天到 */
 export function AnniversaryCalendar({ startDate, today: initialToday }: { startDate: string; today: string }) {
+  const { locale, t } = useLocale();
   const [view, setView] = useState(() => ({ y: Number(initialToday.slice(0, 4)), m: Number(initialToday.slice(5, 7)) - 1 }));
 
   // 今天是哪天只有浏览器知道：水合前用服务端传入的日期（和 SSR 标记一致），
@@ -45,7 +48,7 @@ export function AnniversaryCalendar({ startDate, today: initialToday }: { startD
     () => initialToday
   );
 
-  const yearDays = useMemo(() => specialDaysInYear(view.y, startDate), [view.y, startDate]);
+  const yearDays = useMemo(() => specialDaysInYear(view.y, startDate, locale), [view.y, startDate, locale]);
   const monthKey = `${view.y}-${String(view.m + 1).padStart(2, "0")}`;
   const monthDays = useMemo(() => yearDays.filter((d) => d.date.startsWith(monthKey)), [yearDays, monthKey]);
   const byDay = useMemo(() => {
@@ -56,7 +59,7 @@ export function AnniversaryCalendar({ startDate, today: initialToday }: { startD
     }
     return m;
   }, [monthDays]);
-  const next = useMemo(() => nextSpecialDay(today, startDate), [today, startDate]);
+  const next = useMemo(() => nextSpecialDay(today, startDate, locale), [today, startDate, locale]);
 
   const firstWeekday = new Date(view.y, view.m, 1).getDay();
   const daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
@@ -79,13 +82,13 @@ export function AnniversaryCalendar({ startDate, today: initialToday }: { startD
   const atUpperBound = view.y >= 2099 && view.m === 11;
 
   return (
-    <section className="mt-16 py-8" aria-label="重要的日子">
+    <section className="mt-16 py-8" aria-label={t("home.cal.aria")}>
       <div className="mb-7 flex items-end justify-between gap-4">
-        <h2 className="text-3xl font-bold">重要的日子</h2>
+        <h2 className="text-3xl font-bold">{t("home.cal.title")}</h2>
         {next && (
           <p className="font-round text-sm tracking-wider text-ink-soft">
-            下一个 · <span className="font-bold text-rose-deep">{next.label}</span> ·{" "}
-            {countdownText(today, next.date).text}
+            {t("home.cal.next")} · <span className="font-bold text-rose-deep">{next.label}</span> ·{" "}
+            {countdownText(today, next.date, t).text}
           </p>
         )}
       </div>
@@ -97,7 +100,7 @@ export function AnniversaryCalendar({ startDate, today: initialToday }: { startD
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            aria-label="上一个月"
+            aria-label={t("home.cal.prevMonth")}
             disabled={atLowerBound}
             onClick={() => shiftMonth(-1)}
             className="grid size-9 place-items-center rounded-full border border-ink/15 text-ink-soft transition hover:bg-ink/5 hover:text-ink disabled:opacity-30"
@@ -106,13 +109,13 @@ export function AnniversaryCalendar({ startDate, today: initialToday }: { startD
           </button>
           <div className="text-center">
             <p className="font-script text-3xl leading-none text-rose-deep">
-              {view.y} 年 {view.m + 1} 月
+              {t("home.cal.month", { y: view.y, m: view.m + 1 })}
             </p>
-            <p className="mt-1.5 font-round text-[9px] tracking-[0.32em] text-ink-soft/70">MARKED DAYS · 都是要一起过的日子</p>
+            <p className="mt-1.5 font-round text-[9px] tracking-[0.32em] text-ink-soft/70">{t("home.cal.sub")}</p>
           </div>
           <button
             type="button"
-            aria-label="下一个月"
+            aria-label={t("home.cal.nextMonth")}
             disabled={atUpperBound}
             onClick={() => shiftMonth(1)}
             className="grid size-9 place-items-center rounded-full border border-ink/15 text-ink-soft transition hover:bg-ink/5 hover:text-ink disabled:opacity-30"
@@ -129,9 +132,9 @@ export function AnniversaryCalendar({ startDate, today: initialToday }: { startD
         >
           {/* 星期表头 */}
           <div className="mt-6 grid grid-cols-7">
-            {WEEKDAYS.map((w, i) => (
-              <span key={w} className={cn("pb-2 text-center font-round text-xs font-semibold", i === 0 || i === 6 ? "text-rose-deep/60" : "text-ink-soft")}>
-                {w}
+            {WD_KEYS.map((key, i) => (
+              <span key={key} className={cn("pb-2 text-center font-round text-xs font-semibold", i === 0 || i === 6 ? "text-rose-deep/60" : "text-ink-soft")}>
+                {t(key)}
               </span>
             ))}
           </div>
@@ -171,15 +174,15 @@ export function AnniversaryCalendar({ startDate, today: initialToday }: { startD
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-round text-[10px] tracking-wider text-ink-soft">
             <span className="flex items-center gap-1.5">
               <span className="size-2.5 rounded-full bg-rose-deep" />
-              我们的日子
+              {t("home.cal.legendOurs")}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="size-1.5 rounded-full bg-rose-deep/70" />
-              节日
+              {t("home.cal.legendFest")}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="size-2.5 rounded-full border border-dashed border-rose-deep/70" />
-              今天
+              {t("home.cal.legendToday")}
             </span>
           </div>
 
@@ -188,7 +191,7 @@ export function AnniversaryCalendar({ startDate, today: initialToday }: { startD
             <ul className="mt-5">
               {monthDays.map((e) => {
                 const d = new Date(e.date + "T00:00:00");
-                const cd = countdownText(today, e.date);
+                const cd = countdownText(today, e.date, t);
                 return (
                   <li key={e.date + e.label} className="flex items-center justify-between gap-3 border-t border-dashed border-ink/15 py-2.5">
                     <span className="flex min-w-0 items-center gap-2.5">
@@ -196,7 +199,7 @@ export function AnniversaryCalendar({ startDate, today: initialToday }: { startD
                       <span className="min-w-0">
                         <span className="block font-round text-sm font-semibold text-ink">{e.label}</span>
                         <span className="block font-hand text-xs text-ink-soft">
-                          {d.getMonth() + 1} 月 {d.getDate()} 日 · 周{WEEKDAYS[d.getDay()]}
+                          {t("home.cal.dayRow", { m: d.getMonth() + 1, d: d.getDate(), w: t(WD_KEYS[d.getDay()]) })}
                         </span>
                       </span>
                     </span>
@@ -209,7 +212,7 @@ export function AnniversaryCalendar({ startDate, today: initialToday }: { startD
             </ul>
           ) : (
             <p className="mt-5 border-t border-dashed border-ink/15 pt-4 text-center font-script text-2xl text-ink-soft/70">
-              这个月没有标上记号的日子，普通地在一起也很好
+              {t("home.cal.empty")}
             </p>
           )}
         </motion.div>

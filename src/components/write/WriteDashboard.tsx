@@ -43,24 +43,28 @@ import { Lightbox, type LightboxPhoto } from "@/components/album/Lightbox";
 import { EggForm, isEggArrived, type EggDTO } from "./EggManager";
 import { MilestoneForm, type AlbumPickItem, type MilestoneDTO } from "./MilestoneManager";
 import { READER_NAME } from "@/lib/reader";
+import { useT } from "@/i18n/LocaleProvider";
+import type { Dict } from "@/i18n/dict";
 
-const TYPE_META: Record<EntryDTO["type"], { label: string; icon: typeof Notebook; cls: string }> = {
-  journal: { label: "手账页", icon: Notebook, cls: "bg-matcha text-ink" },
-  photo: { label: "照片", icon: Images, cls: "bg-mist text-ink" },
-  quote: { label: "语录", icon: ChatTeardropText, cls: "bg-peach text-ink" },
-  letter: { label: "信", icon: EnvelopeSimple, cls: "bg-rose-soft text-rose-deep" },
-  board: { label: "自由页", icon: Sticker, cls: "bg-butter text-ink" },
+type DictKey = keyof Dict;
+
+const TYPE_META: Record<EntryDTO["type"], { labelKey: DictKey; icon: typeof Notebook; cls: string }> = {
+  journal: { labelKey: "wd.type.journal", icon: Notebook, cls: "bg-matcha text-ink" },
+  photo: { labelKey: "wd.type.photo", icon: Images, cls: "bg-mist text-ink" },
+  quote: { labelKey: "wd.type.quote", icon: ChatTeardropText, cls: "bg-peach text-ink" },
+  letter: { labelKey: "wd.type.letter", icon: EnvelopeSimple, cls: "bg-rose-soft text-rose-deep" },
+  board: { labelKey: "wd.type.board", icon: Sticker, cls: "bg-butter text-ink" },
 };
 
 /** 本子里的一切：筛选分类（手账含自由拼贴页） */
 const FILTERS = [
-  { value: "all", label: "全部" },
-  { value: "journal", label: "手账" },
-  { value: "photo", label: "相册" },
-  { value: "quote", label: "语录" },
-  { value: "letter", label: "信箱" },
-  { value: "milestone", label: "大事记" },
-  { value: "egg", label: "彩蛋" },
+  { value: "all", labelKey: "wd.filter.all" },
+  { value: "journal", labelKey: "wd.filter.journal" },
+  { value: "photo", labelKey: "wd.filter.photo" },
+  { value: "quote", labelKey: "wd.filter.quote" },
+  { value: "letter", labelKey: "wd.filter.letter" },
+  { value: "milestone", labelKey: "wd.filter.milestone" },
+  { value: "egg", labelKey: "wd.filter.egg" },
 ] as const;
 type FilterValue = (typeof FILTERS)[number]["value"];
 
@@ -76,7 +80,7 @@ const TAB_KEYS: Tab[] = ["write", "list", "settings"];
 const TYPE_KEYS: FormKind[] = ["journal", "photo", "quote", "letter", "milestone", "egg"];
 
 /** 列表行左侧的缩略图：有照片/视频就显示首图，没有就退回类型图标 */
-function ListThumb({ entry, meta }: { entry: EntryDTO; meta: { label: string; icon: typeof Notebook; cls: string } }) {
+function ListThumb({ entry, meta }: { entry: EntryDTO; meta: { labelKey: DictKey; icon: typeof Notebook; cls: string } }) {
   const Icon = meta.icon;
   const cover = entry.media.find((m) => m.kind === "photo") ?? entry.media.find((m) => m.kind === "video");
   if (!cover) {
@@ -171,6 +175,7 @@ function MediaRow({
   onDelete?: () => void;
 }) {
   const toast = useToast();
+  const t = useT();
   const [caption, setCaption] = useState(item.caption ?? "");
   const [date, setDate] = useState(item.entryDate ?? "");
   const [tags, setTags] = useState<string[]>(item.tags ?? []);
@@ -190,18 +195,18 @@ function MediaRow({
       if (okMsg) toast(okMsg);
       return true;
     }
-    toast("没存上，再试一次？", "error");
+    toast(t("wd.saveFail"), "error");
     return false;
   }
 
   async function saveCaption() {
     if (caption === (item.caption ?? "")) return;
-    if (await patch({ caption }, "描述改好了")) onPatched(item.id, { caption: caption || null });
+    if (await patch({ caption }, t("wd.saveCaptionOk"))) onPatched(item.id, { caption: caption || null });
   }
 
   async function saveDate(next: string) {
     if (!next || next === (item.entryDate ?? "")) return;
-    if (await patch({ entryDate: next }, `已挪到 ${next.replaceAll("-", ".")}`)) onPatched(item.id, { entryDate: next });
+    if (await patch({ entryDate: next }, t("wd.saveDateOk", { date: next.replaceAll("-", ".") }))) onPatched(item.id, { entryDate: next });
   }
 
   async function saveTags(next: string[]) {
@@ -216,8 +221,8 @@ function MediaRow({
         type="button"
         onClick={onOpen}
         disabled={!onOpen}
-        aria-label={item.caption ?? "放大看这张"}
-        title="放大看看"
+        aria-label={item.caption ?? t("wd.rowZoom")}
+        title={t("wd.rowZoom")}
         className="relative grid size-14 shrink-0 cursor-zoom-in place-items-center overflow-hidden rounded-lg border border-ink/10 bg-ink/5 transition hover:opacity-85"
       >
         {item.kind === "video" ? (
@@ -228,7 +233,7 @@ function MediaRow({
             ) : (
               <VideoCamera weight="duotone" className="size-5 text-ink-soft" />
             )}
-            <span className="absolute bottom-0.5 right-0.5 rounded bg-ink/60 px-1 text-[9px] font-bold text-paper">视频</span>
+            <span className="absolute bottom-0.5 right-0.5 rounded bg-ink/60 px-1 text-[9px] font-bold text-paper">{t("wd.rowVideo")}</span>
           </>
         ) : (
           /* eslint-disable-next-line @next/next/no-img-element -- 缩略图走带鉴权的 /api/media */
@@ -239,7 +244,7 @@ function MediaRow({
         value={caption}
         onChange={(e) => setCaption(e.target.value)}
         onBlur={() => void saveCaption()}
-        placeholder="写句描述…"
+        placeholder={t("wd.captionPh")}
         className="min-w-32 flex-1 basis-48 rounded-lg border border-ink/15 bg-paper px-2.5 py-1.5 font-script text-lg leading-tight outline-none placeholder:font-hand placeholder:text-sm placeholder:text-ink-soft/50 focus:border-rose"
       />
       <input
@@ -249,19 +254,19 @@ function MediaRow({
           setDate(e.target.value);
           void saveDate(e.target.value);
         }}
-        aria-label="这张的日期"
+        aria-label={t("wd.rowDate")}
         className="rounded-full border border-ink/15 bg-paper px-2.5 py-1 font-round text-xs tracking-wider outline-none focus:border-rose"
       />
       {item.createdAt && (
-        <span title={`上传于 ${fmtCST(item.createdAt)}`} className="shrink-0 font-round text-[10px] tracking-wider text-ink-soft/60">
-          传于 {fmtCST(item.createdAt)}
+        <span title={t("wd.uploadedTitle", { time: fmtCST(item.createdAt) })} className="shrink-0 font-round text-[10px] tracking-wider text-ink-soft/60">
+          {t("wd.uploadedAt", { time: fmtCST(item.createdAt) })}
         </span>
       )}
       <div className="flex flex-wrap items-center gap-1.5">
-        {tags.map((t) => (
-          <span key={t} className="flex items-center gap-1 rounded-full px-2 py-0.5 font-hand text-sm text-ink" style={{ background: tagColor(t) }}>
-            {t}
-            <button type="button" onClick={() => void saveTags(tags.filter((x) => x !== t))} aria-label={`撕掉标签 ${t}`} className="grid size-3.5 place-items-center rounded-full bg-ink/10 transition hover:bg-ink/25">
+        {tags.map((tg) => (
+          <span key={tg} className="flex items-center gap-1 rounded-full px-2 py-0.5 font-hand text-sm text-ink" style={{ background: tagColor(tg) }}>
+            {tg}
+            <button type="button" onClick={() => void saveTags(tags.filter((x) => x !== tg))} aria-label={t("wd.removeTag", { name: tg })} className="grid size-3.5 place-items-center rounded-full bg-ink/10 transition hover:bg-ink/25">
               <X className="size-2" weight="bold" />
             </button>
           </span>
@@ -281,7 +286,7 @@ function MediaRow({
                   if (t && !tags.includes(t)) void saveTags([...tags, t]);
                 }
               }}
-              placeholder="+标签"
+              placeholder={t("wd.tagPh")}
               className="w-24 rounded-full border border-dashed border-ink/25 bg-transparent px-2 py-0.5 font-hand text-sm text-ink-soft outline-none placeholder:text-xs placeholder:text-ink-soft/50 focus:border-rose"
             />
             {tagFocus && (
@@ -289,9 +294,9 @@ function MediaRow({
                 all={tagLib}
                 exclude={tags}
                 typed={tagDraft}
-                onPick={(t) => {
+                onPick={(tg) => {
                   setTagDraft("");
-                  void saveTags([...tags, t]);
+                  void saveTags([...tags, tg]);
                 }}
               />
             )}
@@ -303,10 +308,10 @@ function MediaRow({
         <button
           type="button"
           onClick={() => {
-            if (window.confirm("确定删掉这张吗？相册和存储里都会一起删掉（Live 配对也一起）")) onDelete();
+            if (window.confirm(t("wd.rowDelConfirm"))) onDelete();
           }}
-          aria-label="删掉这张"
-          title="删掉这张（连 Live 配对一起）"
+          aria-label={t("wd.rowDelTitle")}
+          title={t("wd.rowDelTitle")}
           className="grid size-8 shrink-0 place-items-center rounded-full text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep"
         >
           <TrashSimple className="size-4" />
@@ -330,25 +335,26 @@ function MediaManager({
   onPatched: (id: string, patch: Partial<AlbumPickItem>) => void;
   onDeleteItem: (id: string) => void;
 }) {
+  const t = useT();
   const [zoom, setZoom] = useState<number | null>(null);
   const photos = items.filter((i) => i.kind === "photo").length;
   const videos = items.length - photos;
   return (
     <div className="space-y-2.5">
       <p className="px-1 text-sm leading-relaxed text-ink-soft">
-        每一张都在这儿：改描述（失焦即存）、点日期挪到那天（Live 配对跟着走）、随手贴/撕标签。共 {items.length} 张（照片 {photos} · 视频 {videos}）。
+        {t("wd.mediaDesc", { n: items.length, photos, videos })}
       </p>
       {tagLib.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-1">
-          <span className="text-sm font-bold text-ink-soft">标签库：</span>
-          {tagLib.map((t) => (
-            <span key={t} className="flex items-center gap-1 rounded-full px-2 py-0.5 font-hand text-sm text-ink" style={{ background: tagColor(t) }}>
-              {t}
+          <span className="text-sm font-bold text-ink-soft">{t("wd.tagLib")}</span>
+          {tagLib.map((tg) => (
+            <span key={tg} className="flex items-center gap-1 rounded-full px-2 py-0.5 font-hand text-sm text-ink" style={{ background: tagColor(tg) }}>
+              {tg}
               <button
                 type="button"
-                onClick={() => onDeleteTag(t)}
-                aria-label={`删掉标签 ${t}`}
-                title="从标签库删掉（所有照片上都会一起撕掉）"
+                onClick={() => onDeleteTag(tg)}
+                aria-label={t("wd.libDelTag", { name: tg })}
+                title={t("wd.libDelTagTitle")}
                 className="grid size-3.5 place-items-center rounded-full bg-ink/10 transition hover:bg-ink/25"
               >
                 <X weight="bold" className="size-2" />
@@ -367,7 +373,7 @@ function MediaManager({
           onDelete={() => onDeleteItem(m.id)}
         />
       ))}
-      {items.length === 0 && <p className="card-paper py-10 text-center text-ink-soft">相册还空着</p>}
+      {items.length === 0 && <p className="card-paper py-10 text-center text-ink-soft">{t("wd.mediaEmpty")}</p>}
       <Lightbox
         photos={items.map((m) => ({ ...m, entryDate: m.entryDate ?? "" }) as LightboxPhoto)}
         index={zoom}
@@ -405,6 +411,7 @@ function DashboardInner({
   editId?: string;
 }) {
   const toast = useToast();
+  const t = useT();
   // ?type=quote 直达对应新增模块（含大事记 / 彩蛋）
   const initialType = TYPE_KEYS.includes(initialTypeRaw as FormKind) ? (initialTypeRaw as FormKind) : undefined;
   const initialTab = TAB_KEYS.includes(initialTabRaw as Tab) ? (initialTabRaw as Tab) : "write";
@@ -469,28 +476,28 @@ function DashboardInner({
     if (res && res.ok) {
       setAlbumItems((prev) => prev.filter((a) => a.id !== id));
       void refreshAll();
-      toast("已删掉这张");
+      toast(t("wd.rowDelOk"));
     } else {
-      toast("没删掉，再试一次？", "error");
+      toast(t("wd.rowDelFail"), "error");
     }
   }
 
   /** 全局删一个标签：库里、所有照片/页面上、本地状态里一起清掉 */
   async function deleteTagGlobally(name: string) {
-    if (!window.confirm(`确定删掉标签「${name}」吗？会把它从所有照片和筛选里一起撕掉`)) return;
+    if (!window.confirm(t("wd.tagDelConfirm", { name }))) return;
     const res = await fetch(`/api/tags/${encodeURIComponent(name)}`, { method: "DELETE" }).catch(() => null);
     if (res && res.ok) {
-      setTagLib((prev) => prev.filter((t) => t !== name));
-      setAlbumItems((prev) => prev.map((a) => ({ ...a, tags: (a.tags ?? []).filter((t) => t !== name) })));
-      setEntries((prev) => prev.map((e) => ({ ...e, tags: (e.tags ?? []).filter((t) => t !== name) })));
-      toast(`标签「${name}」已删掉`);
+      setTagLib((prev) => prev.filter((tg) => tg !== name));
+      setAlbumItems((prev) => prev.map((a) => ({ ...a, tags: (a.tags ?? []).filter((tg) => tg !== name) })));
+      setEntries((prev) => prev.map((e) => ({ ...e, tags: (e.tags ?? []).filter((tg) => tg !== name) })));
+      toast(t("wd.tagDelOk", { name }));
     } else {
-      toast("没删掉，再试一次？", "error");
+      toast(t("wd.tagDelFail"), "error");
     }
   }
 
   function onSaved(entry: EntryDTO, isNew: boolean) {
-    toast(isNew ? `已贴进手账 · ${entry.entry_date.replaceAll("-", ".")}` : "改好了，已保存");
+    toast(isNew ? t("wd.savedPaste", { date: entry.entry_date.replaceAll("-", ".") }) : t("board.savedEdit"));
     setEditing(null);
     setBoardSeq((s) => s + 1);
     setTab("list");
@@ -512,15 +519,15 @@ function DashboardInner({
   }
 
   async function onDeleteEntry(entry: EntryDTO) {
-    const hint = entry.title || entry.body.slice(0, 12) || TYPE_META[entry.type].label;
-    if (!window.confirm(`确定删掉「${hint}」吗？连照片一起删哦`)) return;
+    const hint = entry.title || entry.body.slice(0, 12) || t(TYPE_META[entry.type].labelKey);
+    if (!window.confirm(t("wd.delEntryConfirm", { hint }))) return;
     const res = await fetch(`/api/entries/${entry.id}`, { method: "DELETE" }).catch(() => null);
     if (res && res.ok) {
       setEntries((prev) => prev.filter((e) => e.id !== entry.id));
       if (editing?.id === entry.id) setEditing(null);
-      toast("已删掉这一页");
+      toast(t("wd.delEntryOk"));
     } else {
-      toast("删除失败，再试一次？", "error");
+      toast(t("wd.delFail"), "error");
     }
   }
 
@@ -534,9 +541,9 @@ function DashboardInner({
     }).catch(() => null);
     if (res && res.ok) {
       setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, visibility: next } : e)));
-      toast(next === "public" ? "这一页对访客公开了" : `这一页收回来，只有${READER_NAME}能看`);
+      toast(next === "public" ? t("wd.visEntryPublic") : t("wd.visEntryPrivate", { reader: READER_NAME }));
     } else {
-      toast("没改上，再试一次？", "error");
+      toast(t("wd.visFail"), "error");
     }
   }
 
@@ -550,9 +557,9 @@ function DashboardInner({
     }).catch(() => null);
     if (res && res.ok) {
       setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, visibility: next } : x)));
-      toast(next === "public" ? "这条大事记对访客公开了" : `这条大事记收回来，只有${READER_NAME}能看`);
+      toast(next === "public" ? t("wd.visMsPublic") : t("wd.visMsPrivate", { reader: READER_NAME }));
     } else {
-      toast("没改上，再试一次？", "error");
+      toast(t("wd.visFail"), "error");
     }
   }
 
@@ -593,43 +600,44 @@ function DashboardInner({
         body: JSON.stringify({ entryIds, milestoneIds, visibility }),
       });
       const data = (await res.json().catch(() => ({}))) as { entries?: number; milestones?: number; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "没改上");
+      if (!res.ok) throw new Error(data.error ?? t("wd.batchFail"));
       setEntries((prev) => prev.map((e) => (picked.has(e.id) ? { ...e, visibility } : e)));
       setMilestones((prev) => prev.map((m) => (picked.has(m.id) ? { ...m, visibility } : m)));
+      const n = (data.entries ?? 0) + (data.milestones ?? 0);
       toast(
         visibility === "public"
-          ? `已放开 ${(data.entries ?? 0) + (data.milestones ?? 0)} 项，访客能看了`
-          : `已收回 ${(data.entries ?? 0) + (data.milestones ?? 0)} 项，只剩${READER_NAME}能看`
+          ? t("wd.batchPublicOk", { n })
+          : t("wd.batchPrivateOk", { n, reader: READER_NAME })
       );
       setPicked(new Set());
     } catch (e) {
-      toast(e instanceof Error ? e.message : "没改上，再试一次？", "error");
+      toast(e instanceof Error ? e.message : t("wd.visFail"), "error");
     } finally {
       setBatchBusy(false);
     }
   }
 
   async function onDeleteMilestone(m: MilestoneDTO) {
-    if (!window.confirm(`确定删掉「${m.title}」这条大事记吗？照片和视频会留在相册里`)) return;
+    if (!window.confirm(t("wd.delMsConfirm", { title: m.title }))) return;
     const res = await fetch(`/api/milestones/${m.id}`, { method: "DELETE" }).catch(() => null);
     if (res && res.ok) {
       setMilestones((prev) => prev.filter((x) => x.id !== m.id));
       if (editingMilestone?.id === m.id) setEditingMilestone(null);
-      toast("已删掉这条大事记");
+      toast(t("wd.delMsOk"));
     } else {
-      toast("删除失败，再试一次？", "error");
+      toast(t("wd.delFail"), "error");
     }
   }
 
   async function onDeleteEgg(egg: EggDTO) {
-    if (!window.confirm(`确定删掉彩蛋「${egg.title}」吗？她留下的留言也会一起删掉`)) return;
+    if (!window.confirm(t("wd.delEggConfirm", { title: egg.title }))) return;
     const res = await fetch(`/api/eggs/${egg.id}`, { method: "DELETE" }).catch(() => null);
     if (res && res.ok) {
       setEggs((prev) => prev.filter((e) => e.id !== egg.id));
       if (editingEgg?.id === egg.id) setEditingEgg(null);
-      toast("彩蛋已删除");
+      toast(t("wd.delEggOk"));
     } else {
-      toast("删除失败，再试一次？", "error");
+      toast(t("wd.delFail"), "error");
     }
   }
 
@@ -637,7 +645,7 @@ function DashboardInner({
     const url = `${window.location.origin}/someday/${egg.id}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast("链接已复制，到时候发给她");
+      toast(t("wd.eggLinkCopied"));
     } catch {
       toast(url);
     }
@@ -686,9 +694,9 @@ function DashboardInner({
   return (
     <div className="mx-auto max-w-3xl py-10">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold">写手账</h1>
+        <h1 className="text-3xl font-bold">{t("wd.pageTitle")}</h1>
         <Link href="/" className="link-soft text-sm">
-          回到手账
+          {t("wd.backHome")}
           <ArrowRight weight="bold" className="size-3.5" />
         </Link>
       </header>
@@ -697,9 +705,9 @@ function DashboardInner({
       <div className="mt-7 flex gap-2 overflow-x-auto no-scrollbar">
         {(
           [
-            { value: "write", label: editingSomething ? "改这一页" : "写一页", icon: PencilSimple, cls: "bg-rose-soft text-rose-deep" },
-            { value: "list", label: "本子里的一切", icon: Stack, cls: "bg-mist text-ink" },
-            { value: "settings", label: "本子信息", icon: GearSix, cls: "bg-butter text-ink" },
+            { value: "write", label: editingSomething ? t("wd.tabEdit") : t("wd.tabWrite"), icon: PencilSimple, cls: "bg-rose-soft text-rose-deep" },
+            { value: "list", label: t("wd.tabAll"), icon: Stack, cls: "bg-mist text-ink" },
+            { value: "settings", label: t("wd.tabSettings"), icon: GearSix, cls: "bg-butter text-ink" },
           ] as const
         ).map(({ value, label, icon: Icon, cls }) => (
           <button
@@ -721,7 +729,7 @@ function DashboardInner({
           className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose-soft px-4 py-2 text-sm font-bold text-rose-deep transition-all duration-300 ease-spring hover:-translate-y-px"
         >
           <HeartStraight weight="fill" className="size-4" />
-          她的痕迹
+          {t("wd.marks")}
         </Link>
         {/* 访客记录：谁（IP/城市）什么时候来逛过 */}
         <Link
@@ -729,7 +737,7 @@ function DashboardInner({
           className="flex shrink-0 items-center gap-1.5 rounded-full bg-mist px-4 py-2 text-sm font-bold text-ink transition-all duration-300 ease-spring hover:-translate-y-px"
         >
           <GlobeHemisphereWest weight="fill" className="size-4" />
-          访客记录
+          {t("wd.visitors")}
         </Link>
         {/* 放映室排片：纪念视频的首映管理 */}
         <Link
@@ -737,7 +745,7 @@ function DashboardInner({
           className="flex shrink-0 items-center gap-1.5 rounded-full bg-butter px-4 py-2 text-sm font-bold text-ink transition-all duration-300 ease-spring hover:-translate-y-px"
         >
           <FilmSlate weight="fill" className="size-4" />
-          放映室排片
+          {t("wd.screenings")}
         </Link>
       </div>
 
@@ -745,7 +753,7 @@ function DashboardInner({
         {tab === "write" &&
           (editing ? (
             <div className="space-y-4">
-              <p className="text-sm text-ink-soft">正在编辑 {editing.entry_date} 的这一页</p>
+              <p className="text-sm text-ink-soft">{t("wd.editingEntry", { date: editing.entry_date })}</p>
               {editing.type === "board" ? (
                 <BoardEditor
                   key={editing.id}
@@ -765,7 +773,7 @@ function DashboardInner({
             </div>
           ) : editingMilestone ? (
             <div className="space-y-4">
-              <p className="text-sm text-ink-soft">正在编辑「{editingMilestone.title}」这条大事记</p>
+              <p className="text-sm text-ink-soft">{t("wd.editingMs", { title: editingMilestone.title })}</p>
               <MilestoneForm
                 initial={editingMilestone}
                 album={albumItems}
@@ -776,7 +784,7 @@ function DashboardInner({
             </div>
           ) : editingEgg ? (
             <div className="space-y-4">
-              <p className="text-sm text-ink-soft">正在编辑彩蛋「{editingEgg.title}」</p>
+              <p className="text-sm text-ink-soft">{t("wd.editingEgg", { title: editingEgg.title })}</p>
               <EggForm initial={editingEgg} album={albumItems} onSaved={onEggSaved} onCancel={() => setEditingEgg(null)} />
             </div>
           ) : (
@@ -786,8 +794,8 @@ function DashboardInner({
                 <div className="flex flex-wrap gap-2">
                   {(
                     [
-                      { value: "form", label: "写一页 · 文字表单", icon: PencilSimple },
-                      { value: "board", label: "拼一页 · 自由画板", icon: Sticker },
+                      { value: "form", label: t("wd.modeForm"), icon: PencilSimple },
+                      { value: "board", label: t("wd.modeBoard"), icon: Sticker },
                     ] as const
                   ).map(({ value, label, icon: Icon }) => (
                     <button
@@ -832,11 +840,9 @@ function DashboardInner({
 
         {tab === "list" && (
           <div className="space-y-4">
-            <p className="px-1 text-sm leading-relaxed text-ink-soft">
-              这本本子的全部记忆——写下的、拍下的、贴上的、埋下的，都在这儿了，随手翻、随手改。
-            </p>
+            <p className="px-1 text-sm leading-relaxed text-ink-soft">{t("wd.listIntro")}</p>
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              {FILTERS.map(({ value, label }) => {
+              {FILTERS.map(({ value, labelKey }) => {
                 const n = value === "all" ? rows.length : value === "photo" ? albumItems.length : rows.filter((r) => r.kind === value).length;
                 return (
                   <button
@@ -848,7 +854,7 @@ function DashboardInner({
                       filter === value ? "-translate-y-px bg-rose-soft text-rose-deep shadow-sm" : "border border-ink/15 text-ink-soft hover:bg-ink/5"
                     )}
                   >
-                    {label}
+                    {t(labelKey)}
                     <span className="font-round text-[11px] tracking-wider opacity-70">{n}</span>
                   </button>
                 );
@@ -861,7 +867,7 @@ function DashboardInner({
                   className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-ink/25 px-3.5 py-1.5 text-sm font-bold text-ink-soft transition hover:border-rose hover:text-rose-deep"
                 >
                   <Checks className="size-4" weight="bold" />
-                  批量设置公开性
+                  {t("wd.batchOn")}
                 </button>
               )}
             </div>
@@ -879,10 +885,11 @@ function DashboardInner({
                     const allOn = ids.length > 0 && ids.every((id) => picked.has(id));
                     return allOn ? <CheckCircle weight="fill" className="size-4 text-rose-deep" /> : <Circle className="size-4" />;
                   })()}
-                  全选当前列表
+                  {t("wd.batchAll")}
                 </button>
                 <span className="font-round text-sm tracking-wider text-ink-soft">
-                  已选 {picked.size} 项{batchBusy ? " · 正在改…" : ""}
+                  {t("wd.batchPicked", { n: picked.size })}
+                  {batchBusy ? t("wd.batchBusy") : ""}
                 </span>
                 <span className="ml-auto" />
                 <button
@@ -892,7 +899,7 @@ function DashboardInner({
                   className="btn-primary px-4 py-2 text-sm"
                 >
                   <Eye weight="bold" className="size-4" />
-                  设为公开
+                  {t("wd.batchPublic")}
                 </button>
                 <button
                   type="button"
@@ -901,7 +908,7 @@ function DashboardInner({
                   className="btn-ghost px-4 py-2 text-sm"
                 >
                   <EyeSlash weight="bold" className="size-4" />
-                  收回为仅{READER_NAME}可见
+                  {t("wd.batchPrivate", { reader: READER_NAME })}
                 </button>
                 <button
                   type="button"
@@ -910,7 +917,7 @@ function DashboardInner({
                     setPicked(new Set());
                   }}
                   className="grid size-8 place-items-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink"
-                  aria-label="退出批量设置"
+                  aria-label={t("wd.batchExit")}
                 >
                   <X className="size-4" weight="bold" />
                 </button>
@@ -919,7 +926,7 @@ function DashboardInner({
 
             {visibleRows.length === 0 && (filter !== "photo" || batch) && (
               <p className="card-paper py-10 text-center text-ink-soft">
-                {rows.length === 0 ? "本子还空着，先写一页吧" : "这一类还没有内容"}
+                {rows.length === 0 ? t("wd.emptyBook") : t("wd.emptyFilter")}
               </p>
             )}
 
@@ -936,9 +943,7 @@ function DashboardInner({
 
             {/* 批量模式下相册按天成页勾选，给一句提示免得误会勾的是单张 */}
             {batch && filter === "photo" && (
-              <p className="px-1 text-xs leading-relaxed text-ink-soft">
-                照片按天自动成页：勾选并公开某一天 = 那天的一整组照片都对访客可见
-              </p>
+              <p className="px-1 text-xs leading-relaxed text-ink-soft">{t("wd.photoBatchHint")}</p>
             )}
 
             {(filter !== "photo" || batch) && visibleRows.map((row) => {
@@ -955,43 +960,43 @@ function DashboardInner({
                       )}
                       onClick={batch ? () => togglePicked(e.id) : undefined}
                     >
-                      {batch && <PickBox on={picked.has(e.id)} onClick={() => togglePicked(e.id)} label={`选中 ${e.title ?? "这一页"}`} />}
+                      {batch && <PickBox on={picked.has(e.id)} onClick={() => togglePicked(e.id)} label={t("wd.pickRow", { title: e.title ?? t("wd.thisPage") })} />}
                       <ListThumb entry={e} meta={meta} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-bold">
-                          {e.title || e.body.replace(/\*\*/g, "").slice(0, 20) || `${meta.label} · ${e.media.length} 个文件`}
+                          {e.title || e.body.replace(/\*\*/g, "").slice(0, 20) || t("wd.entryMeta", { label: t(meta.labelKey), n: e.media.length })}
                         </p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-round text-xs tracking-wider text-ink-soft">
                           <span>
-                            {e.entry_date.replaceAll("-", ".")} · {meta.label}
-                            {e.media.length > 0 && ` · ${e.media.length} 个文件`}
+                            {e.entry_date.replaceAll("-", ".")} · {t(meta.labelKey)}
+                            {e.media.length > 0 && t("wd.entryMedia", { n: e.media.length })}
                           </span>
                           <button
                             type="button"
                             onClick={() => void toggleEntryVisibility(e)}
-                            title={e.visibility === "public" ? "访客也能看这一页，点一下收回来" : `只有${READER_NAME}能看，点一下对访客公开（栏目要也开了公开才生效）`}
+                            title={e.visibility === "public" ? t("wd.visTitlePublic") : t("wd.visTitlePrivate", { reader: READER_NAME })}
                             className={cn(
                               "rounded-full px-2 py-0.5 font-bold transition",
                               e.visibility === "public" ? "bg-matcha/50 text-ink" : "bg-ink/8 text-ink-soft"
                             )}
                           >
-                            {e.visibility === "public" ? "访客可见" : `仅${READER_NAME}可见`}
+                            {e.visibility === "public" ? t("wd.visPublic") : t("wd.visPrivate", { reader: READER_NAME })}
                           </button>
                           {isScheduled(e) && (
                             <span className="rounded-full bg-butter px-2 py-0.5 font-bold text-ink">
-                              定时 {e.reveal_at!.replaceAll("-", ".")} 才可见
+                              {t("wd.scheduled", { date: e.reveal_at!.replaceAll("-", ".") })}
                             </span>
                           )}
-                          {(e.tags ?? []).map((t) => (
-                            <span key={t} className="rounded-full px-1.5 py-0.5 font-hand text-xs text-ink" style={{ background: tagColor(t) }}>
-                              {t}
+                          {(e.tags ?? []).map((tg) => (
+                            <span key={tg} className="rounded-full px-1.5 py-0.5 font-hand text-xs text-ink" style={{ background: tagColor(tg) }}>
+                              {tg}
                             </span>
                           ))}
                         </p>
                         {e.created_at && (
                           <p className="mt-1 font-round text-[10px] tracking-wider text-ink-soft/60">
-                            创建 {fmtCST(e.created_at)}
-                            {e.updated_at && e.updated_at !== e.created_at && ` · 改于 ${fmtCST(e.updated_at)}`}
+                            {t("wd.created", { time: fmtCST(e.created_at) })}
+                            {e.updated_at && e.updated_at !== e.created_at && t("wd.updated", { time: fmtCST(e.updated_at) })}
                           </p>
                         )}
                       </div>
@@ -999,7 +1004,7 @@ function DashboardInner({
                         <button
                           type="button"
                           onClick={() => goEditEntry(e)}
-                          aria-label="编辑"
+                          aria-label={t("action.edit")}
                           className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink"
                         >
                           <PencilSimple className="size-4" />
@@ -1009,7 +1014,7 @@ function DashboardInner({
                         <button
                           type="button"
                           onClick={() => void onDeleteEntry(e)}
-                          aria-label="删除"
+                          aria-label={t("action.delete")}
                           className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep"
                         >
                           <TrashSimple className="size-4" />
@@ -1031,7 +1036,7 @@ function DashboardInner({
                       )}
                       onClick={batch ? () => togglePicked(m.id) : undefined}
                     >
-                      {batch && <PickBox on={picked.has(m.id)} onClick={() => togglePicked(m.id)} label={`选中 ${m.title}`} />}
+                      {batch && <PickBox on={picked.has(m.id)} onClick={() => togglePicked(m.id)} label={t("wd.pickRow", { title: m.title })} />}
                       <span
                         className={cn(
                           "grid size-11 shrink-0 place-items-center rounded-xl bg-butter text-ink",
@@ -1048,25 +1053,25 @@ function DashboardInner({
                         <p className="truncate font-bold">{m.title}</p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-round text-xs tracking-wider text-ink-soft">
                           <span>
-                            {m.date.replaceAll("-", ".")} · 大事记
-                            {m.mediaIds.length > 0 && ` · ${m.mediaIds.length} 个照片/视频`}
+                            {m.date.replaceAll("-", ".")}{t("wd.msKind")}
+                            {m.mediaIds.length > 0 && t("wd.msMedia", { n: m.mediaIds.length })}
                           </span>
                           <button
                             type="button"
                             onClick={() => void toggleMilestoneVisibility(m)}
-                            title={m.visibility === "public" ? "访客也能看这条，点一下收回来" : `只有${READER_NAME}能看，点一下对访客公开（栏目要也开了公开才生效）`}
+                            title={m.visibility === "public" ? t("wd.visTitlePublic") : t("wd.visTitlePrivate", { reader: READER_NAME })}
                             className={cn(
                               "rounded-full px-2 py-0.5 font-bold transition",
                               m.visibility === "public" ? "bg-matcha/50 text-ink" : "bg-ink/8 text-ink-soft"
                             )}
                           >
-                            {m.visibility === "public" ? "访客可见" : `仅${READER_NAME}可见`}
+                            {m.visibility === "public" ? t("wd.visPublic") : t("wd.visPrivate", { reader: READER_NAME })}
                           </button>
                         </p>
                         {m.createdAt && (
                           <p className="mt-1 font-round text-[10px] tracking-wider text-ink-soft/60">
-                            创建 {fmtCST(m.createdAt)}
-                            {m.updatedAt && m.updatedAt !== m.createdAt && ` · 改于 ${fmtCST(m.updatedAt)}`}
+                            {t("wd.created", { time: fmtCST(m.createdAt) })}
+                            {m.updatedAt && m.updatedAt !== m.createdAt && t("wd.updated", { time: fmtCST(m.updatedAt) })}
                           </p>
                         )}
                       </div>
@@ -1074,7 +1079,7 @@ function DashboardInner({
                         <button
                           type="button"
                           onClick={() => goEditMilestone(m)}
-                          aria-label="编辑"
+                          aria-label={t("action.edit")}
                           className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink"
                         >
                           <PencilSimple className="size-4" />
@@ -1084,7 +1089,7 @@ function DashboardInner({
                         <button
                           type="button"
                           onClick={() => void onDeleteMilestone(m)}
-                          aria-label="删除"
+                          aria-label={t("action.delete")}
                           className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep"
                         >
                           <TrashSimple className="size-4" />
@@ -1106,8 +1111,8 @@ function DashboardInner({
                       <p className="truncate font-bold">{g.title}</p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-round text-xs tracking-wider text-ink-soft">
                         <span>
-                          {g.revealDate.replaceAll("-", ".")} · 彩蛋 · {g.photoIds.length} 张照片
-                          {doodleCount > 0 && ` · 她留了 ${doodleCount} 句话`}
+                          {g.revealDate.replaceAll("-", ".")}{t("wd.eggMeta", { n: g.photoIds.length })}
+                          {doodleCount > 0 && t("wd.eggDoodles", { n: doodleCount })}
                         </span>
                         <span
                           className={cn(
@@ -1115,7 +1120,7 @@ function DashboardInner({
                             isEggArrived(g) ? "bg-matcha/50 text-ink" : "bg-butter/60 text-ink"
                           )}
                         >
-                          {isEggArrived(g) ? "到日子啦，可以打开" : "封印中，没到日子"}
+                          {isEggArrived(g) ? t("wd.eggReady") : t("wd.eggSealed")}
                         </span>
                       </p>
                     </div>
@@ -1123,8 +1128,8 @@ function DashboardInner({
                       href={`/someday/${g.id}`}
                       target="_blank"
                       rel="noreferrer"
-                      aria-label="打开彩蛋看她的留言"
-                      title="打开彩蛋：有「有话」角标的照片上叠着她画的话"
+                      aria-label={t("wd.eggOpen")}
+                      title={t("wd.eggOpenTitle")}
                       className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink"
                     >
                       <Eye className="size-4" />
@@ -1132,8 +1137,8 @@ function DashboardInner({
                     <button
                       type="button"
                       onClick={() => void copyEggLink(g)}
-                      aria-label="复制彩蛋链接"
-                      title="复制彩蛋链接"
+                      aria-label={t("wd.eggCopy")}
+                      title={t("wd.eggCopy")}
                       className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink"
                     >
                       <Copy className="size-4" />
@@ -1141,7 +1146,7 @@ function DashboardInner({
                     <button
                       type="button"
                       onClick={() => goEditEgg(g)}
-                      aria-label="编辑"
+                      aria-label={t("action.edit")}
                       className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink"
                     >
                       <PencilSimple className="size-4" />
@@ -1149,7 +1154,7 @@ function DashboardInner({
                     <button
                       type="button"
                       onClick={() => void onDeleteEgg(g)}
-                      aria-label="删除"
+                      aria-label={t("action.delete")}
                       className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep"
                     >
                       <TrashSimple className="size-4" />

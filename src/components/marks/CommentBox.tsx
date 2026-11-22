@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Image as ImageIcon, PaperPlaneTilt, Smiley, X } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/LocaleProvider";
 
 export type MarkMedia = { id: string; url: string; thumbUrl: string | null; width: number | null; height: number | null };
 export type ReplyItem = { body: string; createdAt: string; media: MarkMedia[] };
@@ -33,8 +34,8 @@ function fmt(iso: string): string {
 export function CommentBox({
   entryId,
   initial,
-  heading = "回他几句话",
-  placeholder = "读完这页，想说点什么呢",
+  heading: headingProp,
+  placeholder: placeholderProp,
   compact = false,
 }: {
   entryId: string;
@@ -44,6 +45,9 @@ export function CommentBox({
   /** 手账卡片里收窄一点 */
   compact?: boolean;
 }) {
+  const t = useT();
+  const heading = headingProp ?? t("comment.heading");
+  const placeholder = placeholderProp ?? t("comment.ph");
   const [replies, setReplies] = useState<ReplyItem[]>(initial ?? []);
   const [text, setText] = useState("");
   const [images, setImages] = useState<MarkMedia[]>([]);
@@ -86,7 +90,7 @@ export function CommentBox({
     setError("");
     for (const file of Array.from(files).slice(0, MAX_IMAGES - images.length)) {
       if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
-        setError("只能传图片哦");
+        setError(t("comment.imgOnly"));
         continue;
       }
       setUploading((n) => n + 1);
@@ -98,10 +102,10 @@ export function CommentBox({
         if (res.ok && data.id) {
           setImages((imgs) => [...imgs, { id: data.id!, url: data.url ?? `/api/media/${data.id}`, thumbUrl: data.thumbUrl ?? null, width: null, height: null }]);
         } else {
-          setError(data.error ?? "这张图没传上，再试一次？");
+          setError(data.error ?? t("comment.imgFail"));
         }
       } catch {
-        setError("网络好像打了个盹，图没传上");
+        setError(t("comment.netImg"));
       } finally {
         setUploading((n) => n - 1);
       }
@@ -126,10 +130,10 @@ export function CommentBox({
         setImages([]);
         setEmojiOpen(false);
       } else {
-        setError(data.error ?? "没寄出去，再试一次？");
+        setError(data.error ?? t("comment.sendFail"));
       }
     } catch {
-      setError("网络好像打了个盹，再试一次？");
+      setError(t("state.network"));
     } finally {
       setBusy(false);
     }
@@ -147,7 +151,7 @@ export function CommentBox({
               {r.media.length > 0 && (
                 <div className={cn("mt-1.5 flex flex-wrap gap-1.5", r.body && "mt-2")}>
                   {r.media.map((m) => (
-                    <a key={m.id} href={m.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg transition hover:opacity-85" aria-label="放大看她发的图">
+                    <a key={m.id} href={m.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg transition hover:opacity-85" aria-label={t("comment.zoomImg")}>
                       {/* eslint-disable-next-line @next/next/no-img-element -- 评论图走带鉴权的 /api/media，next/image 不适用 */}
                       <img src={m.thumbUrl ?? m.url} alt="" loading="lazy" className="max-h-28 max-w-[10rem] rounded-lg object-cover" />
                     </a>
@@ -171,7 +175,7 @@ export function CommentBox({
               <button
                 type="button"
                 onClick={() => setImages((imgs) => imgs.filter((x) => x.id !== m.id))}
-                aria-label="不要这张了"
+                aria-label={t("comment.removeImg")}
                 className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-ink/80 text-paper transition hover:bg-rose-deep"
               >
                 <X weight="bold" className="size-3" />
@@ -180,7 +184,7 @@ export function CommentBox({
           ))}
           {uploading > 0 && (
             <span className="grid size-16 place-items-center rounded-xl border-2 border-dashed border-ink/20 font-round text-[11px] text-ink-soft">
-              传图中…
+              {t("comment.uploading")}
             </span>
           )}
         </div>
@@ -193,15 +197,15 @@ export function CommentBox({
           onChange={(e) => setText(e.target.value.slice(0, MAX_BODY))}
           rows={2}
           placeholder={placeholder}
-          aria-label="评论内容"
+          aria-label={t("comment.content")}
           className="min-h-11 flex-1 resize-none rounded-2xl border-2 border-ink/15 bg-paper px-4 py-2.5 text-[0.95rem] outline-none focus:border-rose"
         />
         <div className="flex shrink-0 flex-col gap-1.5">
           <button
             type="button"
             onClick={() => setEmojiOpen((v) => !v)}
-            aria-label="插个表情"
-            title="插个表情"
+            aria-label={t("comment.insertEmoji")}
+            title={t("comment.insertEmoji")}
             className={cn(
               "grid size-9 place-items-center rounded-full border transition",
               emojiOpen ? "border-rose bg-rose-soft text-rose-deep" : "border-ink/15 text-ink-soft hover:bg-ink/5 hover:text-ink"
@@ -213,8 +217,8 @@ export function CommentBox({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={images.length >= MAX_IMAGES || uploading > 0}
-            aria-label="发张图"
-            title={`发张图（最多 ${MAX_IMAGES} 张）`}
+            aria-label={t("comment.addImg")}
+            title={t("comment.addImgTitle", { n: MAX_IMAGES })}
             className="grid size-9 place-items-center rounded-full border border-ink/15 text-ink-soft transition hover:bg-ink/5 hover:text-ink disabled:opacity-40"
           >
             <ImageIcon weight="fill" className="size-4.5" />
@@ -233,7 +237,7 @@ export function CommentBox({
         </div>
         <button type="button" onClick={send} disabled={!canSend} className="btn-primary shrink-0 px-4 py-2.5 text-sm">
           <PaperPlaneTilt weight="fill" className="size-4" />
-          {busy ? "寄出中…" : "寄回去"}
+          {busy ? t("comment.sending") : t("comment.send")}
         </button>
       </div>
 
@@ -258,7 +262,7 @@ export function CommentBox({
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-center font-round text-[11px] tracking-wider text-ink-soft/60">点一下就写进去啦</p>
+            <p className="mt-2 text-center font-round text-[11px] tracking-wider text-ink-soft/60">{t("comment.emojiHint")}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -266,7 +270,7 @@ export function CommentBox({
       {error && <p className="mt-2 text-sm font-bold text-rose-deep">{error}</p>}
       <p className="mt-2 font-round text-[11px] tracking-wider text-ink-soft/60">
         {text.length > 0 && <span className="mr-2">{text.length}/{MAX_BODY}</span>}
-        可以写字、点笑脸插表情、传张图；只有他能在后台看到
+        {t("comment.hint")}
       </p>
     </section>
   );

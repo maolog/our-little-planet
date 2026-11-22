@@ -6,10 +6,12 @@ import { useToast } from "@/components/Toast";
 import { uploadFile, type MediaDTO } from "@/lib/client-upload";
 import type { SiteSettings } from "@/lib/settings";
 import { READER_NAME } from "@/lib/reader";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 本子信息（彩蛋已独立到「彩蛋」标签页管理） */
 export function SettingsForm({ initial }: { initial: SiteSettings }) {
   const toast = useToast();
+  const t = useT();
   const [title, setTitle] = useState(initial.title);
   const [names, setNames] = useState(initial.names);
   const [startDate, setStartDate] = useState(initial.startDate);
@@ -54,7 +56,7 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
   async function pickBgm(file: File | undefined) {
     if (!file) return;
     if (!(file.type.startsWith("audio/") || /\.(mp3|m4a|aac|wav|ogg|flac)$/i.test(file.name))) {
-      toast("选一个音频文件（mp3 / m4a / wav…）", "error");
+      toast(t("set.bgmBadFile"), "error");
       return;
     }
     setBgmUploading(true);
@@ -63,9 +65,9 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
       setBgmNew(dto);
       setBgmNewName(file.name);
       setBgmRemoved(false);
-      toast("传好了，别忘了点下面的保存");
+      toast(t("set.bgmUploaded"));
     } catch (e) {
-      toast(e instanceof Error ? e.message : "上传失败", "error");
+      toast(e instanceof Error ? e.message : t("set.bgmUploadFail"), "error");
     } finally {
       setBgmUploading(false);
     }
@@ -75,7 +77,7 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
     if (!file) return;
     const text = await file.text().catch(() => "");
     if (!text.trim()) {
-      toast("这个文件读不出歌词", "error");
+      toast(t("set.lrcUnreadable"), "error");
       return;
     }
     setBgmLyrics(text.slice(0, 20000));
@@ -110,19 +112,19 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "保存失败了");
+        throw new Error(data.error ?? t("state.saveError"));
       }
       // 换歌或移除：旧文件已经没有引用，删掉（失败也不影响配置，最多留个孤儿文件）
       const replaced = initial.bgmMediaId && initial.bgmMediaId !== bgmMediaId ? initial.bgmMediaId : null;
       if (replaced) void fetch(`/api/media/${replaced}`, { method: "DELETE" }).catch(() => undefined);
       bgmPendingRef.current = null;
       setState("saved");
-      toast("本子信息已保存");
+      toast(t("set.saved"));
       setTimeout(() => setState("idle"), 2500);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "保存失败了");
+      setError(e instanceof Error ? e.message : t("state.saveError"));
       setState("error");
-      toast(e instanceof Error ? e.message : "保存失败了", "error");
+      toast(e instanceof Error ? e.message : t("state.saveError"), "error");
     }
   }
 
@@ -135,19 +137,19 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
     <form onSubmit={submit} className="card-paper max-w-lg space-y-6">
       <div>
         <label className={labelCls} htmlFor="set-title">
-          本子的名字（首页大标题）
+          {t("set.title")}
         </label>
-        <input id="set-title" value={title} onChange={(e) => setTitle(e.target.value)} className={fieldCls} placeholder="我们的小星球" />
+        <input id="set-title" value={title} onChange={(e) => setTitle(e.target.value)} className={fieldCls} placeholder={t("set.titlePh")} />
       </div>
       <div>
         <label className={labelCls} htmlFor="set-names">
-          封面上的两个人
+          {t("set.names")}
         </label>
-        <input id="set-names" value={names} onChange={(e) => setNames(e.target.value)} className={fieldCls} placeholder="小张 ♥ 小星" />
+        <input id="set-names" value={names} onChange={(e) => setNames(e.target.value)} className={fieldCls} placeholder={t("set.namesPh")} />
       </div>
       <div>
         <label className={labelCls} htmlFor="set-date">
-          在一起的纪念日（首页天数从这天开始算）
+          {t("set.startDate")}
         </label>
         <input id="set-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={fieldCls} />
       </div>
@@ -160,8 +162,8 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
         className="flex w-full items-center justify-between gap-4 rounded-2xl border-2 border-ink/10 bg-paper px-4 py-3 text-left transition hover:border-ink/25"
       >
         <span>
-          <span className="block text-sm font-bold">语录便利贴上不显示日期</span>
-          <span className="mt-0.5 block text-xs text-ink-soft">批量导入的语录全是同一天时，墙上一排同日期不好看</span>
+          <span className="block text-sm font-bold">{t("set.hideQuoteDate")}</span>
+          <span className="mt-0.5 block text-xs text-ink-soft">{t("set.hideQuoteDateDesc")}</span>
         </span>
         <span
           className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${hideQuoteDate ? "bg-rose-deep" : "bg-ink/20"}`}
@@ -175,23 +177,22 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
 
       {/* 访客模式：哪些栏目不登录也能看。没开的栏目对访客整栏消失（数据也不会渲染） */}
       <fieldset className="rounded-2xl border-2 border-dashed border-mist bg-mist/15 px-4 py-4">
-        <legend className="px-1.5 text-sm font-bold text-ink">访客模式</legend>
+        <legend className="px-1.5 text-sm font-bold text-ink">{t("set.guest")}</legend>
         <p className="mb-3.5 text-xs leading-relaxed text-ink-soft">
-          开着的栏目，她的同事朋友不输密码就能看；关着的栏目只在导航里出现给{READER_NAME}。
-          栏目开了之后，具体每一页还能在「写一页」表单和「本子里的一切」里单独设公开或仅{READER_NAME}可见。
+          {t("set.guestDesc", { reader: READER_NAME })}
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           {(
             [
-              { key: "home", label: "首页", desc: "天数、本月结算这些" },
-              { key: "journal", label: "手账", desc: "日记页和自由拼贴" },
-              { key: "album", label: "相册", desc: "拍立得墙" },
-              { key: "quotes", label: "语录", desc: "便利贴和语音" },
-              { key: "letters", label: "信箱", desc: "信和她的回话" },
-              { key: "timeline", label: "大事记", desc: "里程碑时间轴" },
-              { key: "screenings", label: "放映室", desc: "纪念视频的首映" },
+              { key: "home", labelKey: "nav.tab.home", descKey: "set.guestHome" },
+              { key: "journal", labelKey: "nav.tab.journal", descKey: "set.guestJournal" },
+              { key: "album", labelKey: "nav.tab.album", descKey: "set.guestAlbum" },
+              { key: "quotes", labelKey: "nav.tab.quotes", descKey: "set.guestQuotes" },
+              { key: "letters", labelKey: "nav.tab.letters", descKey: "set.guestLetters" },
+              { key: "timeline", labelKey: "nav.tab.timeline", descKey: "set.guestTimeline" },
+              { key: "screenings", labelKey: "nav.tab.screenings", descKey: "set.guestScreenings" },
             ] as const
-          ).map(({ key, label, desc }) => (
+          ).map(({ key, labelKey, descKey }) => (
             <button
               key={key}
               type="button"
@@ -200,8 +201,8 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
               className="flex items-center justify-between gap-3 rounded-2xl border-2 border-ink/10 bg-paper px-3.5 py-2.5 text-left transition hover:border-ink/25"
             >
               <span>
-                <span className="block text-sm font-bold">{label}</span>
-                <span className="mt-0.5 block text-xs text-ink-soft">{desc}</span>
+                <span className="block text-sm font-bold">{t(labelKey)}</span>
+                <span className="mt-0.5 block text-xs text-ink-soft">{t(descKey)}</span>
               </span>
               <span
                 className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${guestOpen[key] ? "bg-rose-deep" : "bg-ink/20"}`}
@@ -216,14 +217,14 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
         </div>
         <div className="mt-3.5">
           <label className={labelCls} htmlFor="set-guest-welcome">
-            访客进门看到的一句话（首页没公开时显示）
+            {t("set.guestWelcome")}
           </label>
           <input
             id="set-guest-welcome"
             value={guestWelcome}
             onChange={(e) => setGuestWelcome(e.target.value.slice(0, 200))}
             className={fieldCls}
-            placeholder="欢迎来我们的小星球做客，这里有一小部分摊开给你看"
+            placeholder={t("set.guestWelcomePh")}
             maxLength={200}
           />
         </div>
@@ -231,14 +232,14 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
 
       {/* 大事记的背景音乐：自托管一首 mp3 + LRC 歌词 */}
       <fieldset className="rounded-2xl border-2 border-dashed border-rose/40 bg-rose-soft/25 px-4 py-4">
-        <legend className="px-1.5 text-sm font-bold text-rose-deep">大事记的背景音乐</legend>
+        <legend className="px-1.5 text-sm font-bold text-rose-deep">{t("set.bgm")}</legend>
 
         <div className="flex flex-wrap items-center gap-2.5">
           {hasBgm ? (
             <>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-3 py-1.5 text-sm font-bold text-ink shadow-sm">
                 <MusicNotes weight="fill" className="size-4 text-rose-deep" />
-                {bgmNew ? `新歌：${bgmNewName}` : "已配置一首背景音乐"}
+                {bgmNew ? t("set.bgmNew", { name: bgmNewName }) : t("set.bgmExisting")}
               </span>
               <button
                 type="button"
@@ -247,7 +248,7 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
                 className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 px-3 py-1.5 text-sm text-ink-soft transition hover:bg-ink/5"
               >
                 <UploadSimple weight="bold" className="size-4" />
-                换一首
+                {t("set.bgmSwap")}
               </button>
               <button
                 type="button"
@@ -260,11 +261,11 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
                 className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 px-3 py-1.5 text-sm text-ink-soft transition hover:bg-ink/5"
               >
                 <Trash weight="bold" className="size-4" />
-                移除
+                {t("set.bgmRemove")}
               </button>
             </>
           ) : bgmRemoved && initial.bgmMediaId ? (
-            <span className="text-sm text-ink-soft">保存后就没有背景音乐了</span>
+            <span className="text-sm text-ink-soft">{t("set.bgmNone")}</span>
           ) : (
             <button
               type="button"
@@ -273,7 +274,7 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
               className="inline-flex items-center gap-1.5 rounded-full bg-rose-deep px-3.5 py-1.5 text-sm font-bold text-paper shadow-sm transition hover:-translate-y-0.5"
             >
               <UploadSimple weight="bold" className="size-4" />
-              {bgmUploading ? "上传中…" : "上传一首我们的歌"}
+              {bgmUploading ? t("set.bgmUploading") : t("set.bgmUpload")}
             </button>
           )}
           <input
@@ -290,14 +291,14 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
 
         <div className="mt-3.5">
           <label className={labelCls} htmlFor="set-bgm-title">
-            歌名（唱片下方和歌词卡上显示）
+            {t("set.bgmTitle")}
           </label>
           <input
             id="set-bgm-title"
             value={bgmTitle}
             onChange={(e) => setBgmTitle(e.target.value)}
             className={fieldCls}
-            placeholder="我们的歌 - 某位歌手"
+            placeholder={t("set.bgmTitlePh")}
             maxLength={120}
           />
         </div>
@@ -305,14 +306,14 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
         <div className="mt-3.5">
           <div className="mb-1.5 flex items-center justify-between">
             <label className={`${labelCls} mb-0`} htmlFor="set-bgm-lyrics">
-              歌词（带时间标签可逐行跟唱）
+              {t("set.bgmLyrics")}
             </label>
             <button
               type="button"
               onClick={() => bgmLrcInput.current?.click()}
               className="text-xs font-bold text-rose-deep underline-offset-2 hover:underline"
             >
-              选 .lrc 文件
+              {t("set.bgmPickLrc")}
             </button>
           </div>
           <textarea
@@ -321,11 +322,9 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
             onChange={(e) => setBgmLyrics(e.target.value.slice(0, 20000))}
             rows={5}
             className={`${fieldCls} resize-y font-mono text-xs leading-relaxed`}
-            placeholder={"[00:12.50]第一句歌词\n[00:16.20]第二句歌词\n（也可以直接贴纯文字歌词，就像写在信纸上）"}
+            placeholder={t("set.bgmLyricsPh")}
           />
-          <p className="mt-1.5 text-xs text-ink-soft">
-            播放大事记里的视频时音乐会自动让路，视频结束后从原进度接上
-          </p>
+          <p className="mt-1.5 text-xs text-ink-soft">{t("set.bgmHint")}</p>
           <input
             ref={bgmLrcInput}
             type="file"
@@ -345,12 +344,12 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
         {state === "saved" ? (
           <>
             <Check weight="bold" className="size-5" />
-            已保存
+            {t("state.saved")}
           </>
         ) : (
           <>
             <FloppyDisk weight="bold" className="size-5" />
-            {state === "saving" ? "保存中…" : "保存"}
+            {state === "saving" ? t("action.saving") : t("action.save")}
           </>
         )}
       </button>

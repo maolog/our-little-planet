@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, PencilSimple, Trash, X } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/Toast";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 灯箱里的「快速改日期」：和改描述一套交互，改的是这张照片自己的拍摄日期。
  *  保存走 PATCH /api/media/:id 的 entryDate：服务端会把它（连同 Live 配对视频）
@@ -20,6 +21,7 @@ export function MediaDateEdit({
   className?: string;
 }) {
   const toast = useToast();
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(date);
   const [saving, setSaving] = useState(false);
@@ -45,13 +47,13 @@ export function MediaDateEdit({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "保存失败");
+        throw new Error(data.error ?? t("state.saveError"));
       }
       setEditing(false);
       onSaved?.(draft);
-      toast("日期改好了，这张已挪到那天的页面");
+      toast(t("lightbox.dateOk"));
     } catch (e) {
-      toast(e instanceof Error ? e.message : "没保存上，再试一次", "error");
+      toast(e instanceof Error ? e.message : t("album.saveRetry"), "error");
     } finally {
       setSaving(false);
     }
@@ -64,8 +66,8 @@ export function MediaDateEdit({
         <button
           type="button"
           onClick={begin}
-          title="改这张的日期（会挪到那天的页面）"
-          aria-label="编辑这张照片的日期"
+          title={t("lightbox.dateTitle")}
+          aria-label={t("lightbox.dateAria")}
           className="grid size-7 shrink-0 place-items-center rounded-full bg-paper/15 text-paper backdrop-blur transition hover:bg-paper/30"
         >
           <PencilSimple weight="bold" className="size-3.5" />
@@ -98,7 +100,7 @@ export function MediaDateEdit({
       />
       <button
         type="button"
-        aria-label="保存日期"
+        aria-label={t("lightbox.dateSave")}
         disabled={saving}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => void save()}
@@ -108,7 +110,7 @@ export function MediaDateEdit({
       </button>
       <button
         type="button"
-        aria-label="不改了"
+        aria-label={t("board.cancel")}
         disabled={saving}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => {
@@ -136,13 +138,14 @@ export function MediaDeleteButton({
   className?: string;
 }) {
   const toast = useToast();
+  const t = useT();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!confirming) return;
-    const t = setTimeout(() => setConfirming(false), 3000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setConfirming(false), 3000);
+    return () => clearTimeout(timer);
   }, [confirming]);
 
   async function del() {
@@ -155,12 +158,12 @@ export function MediaDeleteButton({
       const res = await fetch(`/api/media/${mediaId}?force=1`, { method: "DELETE" });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "删除失败");
+        throw new Error(data.error ?? t("lightbox.delFail"));
       }
       onDeleted?.();
-      toast("删掉了，服务器和 OSS 上的文件也一起清了");
+      toast(t("lightbox.delOk"));
     } catch (e) {
-      toast(e instanceof Error ? e.message : "没删掉，再试一次", "error");
+      toast(e instanceof Error ? e.message : t("lightbox.delRetry"), "error");
     } finally {
       setBusy(false);
       setConfirming(false);
@@ -173,8 +176,8 @@ export function MediaDeleteButton({
       onClick={() => void del()}
       disabled={busy}
       onMouseDown={(e) => e.preventDefault()}
-      title="从相册删掉这一张（连 OSS 里的文件一起清，别的不受影响）"
-      aria-label={confirming ? "再点一次确认删除" : "删除这张照片"}
+      title={t("lightbox.delTitle")}
+      aria-label={confirming ? t("lightbox.delConfirmAria") : t("lightbox.delAria")}
       className={cn(
         "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full text-xs font-bold tracking-[0.12em] text-paper backdrop-blur transition disabled:opacity-50",
         confirming ? "w-auto bg-rose-deep px-3.5" : "w-8 bg-paper/15 hover:bg-rose-deep/80",
@@ -182,7 +185,7 @@ export function MediaDeleteButton({
       )}
     >
       {confirming ? (
-        "确认删除？"
+        t("lightbox.delConfirm")
       ) : (
         <Trash weight="bold" className="size-3.5" />
       )}
@@ -205,6 +208,7 @@ export function CaptionQuickEdit({
   className?: string;
 }) {
   const toast = useToast();
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -236,13 +240,13 @@ export function CaptionQuickEdit({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "保存失败");
+        throw new Error(data.error ?? t("state.saveError"));
       }
       setEditing(false);
       onSaved?.(clean.length > 0 ? clean : null);
-      toast("这句已经写上了");
+      toast(t("lightbox.captionOk"));
     } catch (e) {
-      toast(e instanceof Error ? e.message : "没保存上，再试一次", "error");
+      toast(e instanceof Error ? e.message : t("album.saveRetry"), "error");
     } finally {
       setSaving(false);
     }
@@ -255,8 +259,8 @@ export function CaptionQuickEdit({
         <button
           type="button"
           onClick={begin}
-          title="改一改这张的描述"
-          aria-label="编辑这张照片的描述"
+          title={t("lightbox.captionTitle")}
+          aria-label={t("lightbox.captionAria")}
           className={cn(
             "grid shrink-0 place-items-center rounded-full text-paper backdrop-blur transition",
             caption
@@ -264,7 +268,7 @@ export function CaptionQuickEdit({
               : "h-8 border border-dashed border-paper/45 px-3 font-hand text-base text-paper/80 hover:border-paper/75 hover:text-paper"
           )}
         >
-          {caption ? <PencilSimple weight="bold" className="size-3.5" /> : "＋ 写一句话"}
+          {caption ? <PencilSimple weight="bold" className="size-3.5" /> : t("lightbox.captionWrite")}
         </button>
       </span>
     );
@@ -277,7 +281,7 @@ export function CaptionQuickEdit({
         value={draft}
         maxLength={300}
         disabled={saving}
-        placeholder="写下这一刻"
+        placeholder={t("lightbox.captionPh")}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
           // 输入时别惊动灯箱的全局快捷键（Esc 关灯箱、左右键翻页）
@@ -305,7 +309,7 @@ export function CaptionQuickEdit({
       />
       <button
         type="button"
-        aria-label="保存描述"
+        aria-label={t("lightbox.captionSave")}
         disabled={saving}
         // 按住按钮不让 input 先失焦（preventDefault 保住焦点），保存只走 onClick 一条路
         onMouseDown={(e) => e.preventDefault()}
@@ -316,7 +320,7 @@ export function CaptionQuickEdit({
       </button>
       <button
         type="button"
-        aria-label="不改了"
+        aria-label={t("board.cancel")}
         disabled={saving}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => {

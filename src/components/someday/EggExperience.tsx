@@ -10,6 +10,7 @@ import { EntryText } from "@/components/journal/EntryText";
 import { PolaroidCard } from "@/components/journal/PolaroidCard";
 import { tiltOf, pickOf } from "@/lib/tilt";
 import { EggDoodleLightbox, type EggPhotoItem } from "./EggDoodleLightbox";
+import { useT } from "@/i18n/LocaleProvider";
 
 type Phase = "ready" | "wall" | "letter" | "finale";
 
@@ -29,6 +30,7 @@ export function EggExperience({
   photos: EggPhotoItem[];
   author?: boolean;
 }) {
+  const t = useT();
   const reduce = useReducedMotion();
   // 作者预览时在灯箱里改过的描述，回填这份本地状态，墙上的拍立得跟着换字
   const [wallPhotos, setWallPhotos] = useState(photos);
@@ -73,7 +75,7 @@ export function EggExperience({
             <p className="font-script text-3xl text-rose-deep">the day has come</p>
             <h1 className="scribble mt-4 inline-block pb-2 text-5xl font-bold leading-tight sm:text-6xl">{title}</h1>
             <p className="mx-auto mt-6 max-w-sm leading-relaxed text-ink-soft">
-              你发现了一个藏了很久的秘密。{photos.length > 0 ? `这里有 ${photos.length} 段回忆和一封信，都在等你。` : "有一封信，在等你。"}
+              {t("egg.found")}{photos.length > 0 ? t("egg.withPhotos", { n: photos.length }) : t("egg.onlyLetter")}
             </p>
             <button
               type="button"
@@ -81,7 +83,7 @@ export function EggExperience({
               className="btn-primary mt-10 px-10 py-3.5 text-lg"
             >
               <Heart weight="fill" className="size-5" />
-              翻开它
+              {t("egg.flip")}
             </button>
           </motion.div>
         )}
@@ -100,7 +102,7 @@ export function EggExperience({
               <h2 className="text-3xl font-bold">{title}</h2>
               <p className="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-ink-soft">
                 <Sparkle weight="fill" className="size-4 text-butter" />
-                点开照片可以在上面写下你最想说的话，视频点开就能播放
+                {t("egg.wallHint")}
               </p>
             </header>
             <div className="columns-2 gap-6 sm:columns-3 lg:columns-4 [&>*]:mb-6">
@@ -110,7 +112,7 @@ export function EggExperience({
                   type="button"
                   className="relative block w-full cursor-zoom-in break-inside-avoid"
                   onClick={() => setOpenIdx(i)}
-                  aria-label={p.caption ?? "点开这张照片"}
+                  aria-label={p.caption ?? t("egg.openPhoto")}
                 >
                   <PolaroidCard
                     src={p.thumbUrl ?? p.url}
@@ -118,7 +120,7 @@ export function EggExperience({
                     poster={p.kind === "video" ? p.posterUrl : null}
                     hevc={p.kind === "video" ? p.hevc : null}
                     caption={p.caption}
-                    alt={p.caption ?? "我们的照片"}
+                    alt={p.caption ?? t("journal.ourPhoto")}
                     tilt={tiltOf(p.id)}
                     tone={pickOf(p.id, ["rose", "butter", "mist", "peach", "matcha"])}
                     tape="none"
@@ -130,7 +132,7 @@ export function EggExperience({
                   {counts.get(p.id) ? (
                     <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-ink/55 px-2 py-0.5 text-[10px] font-bold tracking-wider text-paper backdrop-blur">
                       <Sparkle weight="fill" className="size-3 text-butter" />
-                      有话
+                      {t("egg.hasWords")}
                     </span>
                   ) : null}
                 </button>
@@ -139,7 +141,7 @@ export function EggExperience({
             <div className={cn("mt-12 text-center")}>
               <button type="button" onClick={() => setPhase("letter")} className="btn-primary">
                 <EnvelopeSimple weight="fill" className="size-5" />
-                去读那封信
+                {t("egg.readLetter")}
               </button>
             </div>
           </motion.section>
@@ -167,12 +169,12 @@ export function EggExperience({
               {photos.length > 0 && (
                 <button type="button" onClick={() => setPhase("wall")} className="btn-ghost">
                   <Images weight="fill" className="size-4" />
-                  回去看看照片
+                  {t("egg.backPhotos")}
                 </button>
               )}
               <button type="button" onClick={() => setPhase("finale")} className="btn-primary">
                 <Heart weight="fill" className="size-5" />
-                我看完了
+                {t("egg.readAll")}
               </button>
             </div>
           </motion.article>
@@ -189,18 +191,18 @@ export function EggExperience({
           >
             <DayCounter startDate={startDate} className="mx-auto w-fit" />
             <p className="mx-auto mt-8 max-w-md text-lg leading-relaxed">
-              这只是到今天为止的部分。
+              {t("egg.finale1")}
               <br />
-              往后的每一页，我们一起写。
+              {t("egg.finale2")}
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
               <Link href="/journal" className="btn-primary">
                 <Images weight="fill" className="size-5" />
-                去翻我们的手账
+                {t("egg.toJournal")}
               </Link>
               <Link href="/letters" className="btn-ghost">
                 <EnvelopeSimple weight="fill" className="size-4" />
-                去信箱
+                {t("egg.toMailbox")}
               </Link>
             </div>
             <p className="mt-8 font-script text-2xl text-ink-soft/70">happy someday, my love</p>

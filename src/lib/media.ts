@@ -1,4 +1,5 @@
 import path from "node:path";
+import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { db, MEDIA_DIR, type MediaRow } from "./db";
 export type { MediaRow } from "./db";
 import { demoSampleBytes, demoSampleFor, IS_DEMO } from "./demo";
@@ -195,8 +196,9 @@ export async function makePoster(mediaId: string, input: string | Buffer): Promi
   }
 }
 
-/** 生成缩略图：local 写盘 data/media/<id>_thumb.webp，oss 传对象 media/<id>_thumb.webp */
-export async function makeThumb(mediaId: string, input: Buffer): Promise<void> {
+/** 生成缩略图：local 写盘 data/media/<id>_thumb.webp，oss 传对象 media/<id>_thumb.webp。
+ *  input 可以是文件路径——sharp（libvips）自己流式读，不必先把整图读进内存 */
+export async function makeThumb(mediaId: string, input: Buffer | string): Promise<void> {
   const sharp = (await import("sharp")).default;
   const buf = await sharp(input)
     .rotate()
@@ -224,6 +226,29 @@ function internalOssUrl(url: string): string {
   return url.replace(ep, ep.replace(".aliyuncs.com", "-internal.aliyuncs.com"));
 }
 
+/** 按顺序尝试一组 URL，把内容流式落到临时文件（边收边写，不整段进内存）。
+ *  大视频抽封面、大照片生成缩略图都走它——原来 arrayBuffer() 会把整文件读进堆 */
+async function fetchToFile(urls: string[], dest: string): Promise<void> {
+  const { Readable } = await import("node:stream");
+  const { pipeline } = await import("node:stream/promises");
+  const { createWriteStream } = await import("node:fs");
+  let lastErr: unknown = null;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok || !res.body) throw new Error(`拉取失败 (${res.status})`);
+      await pipeline(
+        Readable.fromWeb(res.body as unknown as NodeWebReadableStream<Uint8Array>),
+        createWriteStream(dest),
+      );
+      return;
+    } catch (e) {
+      lastErr = e; // 换下一个地址（内网失败退公网）
+    }
+  }
+  throw lastErr ?? new Error("拉取失败");
+}
+
 /** 上传完成后异步补缩略图/视频封面：失败不打断上传（墙上暂时回落原样，后台补上自然切换） */
 async function thumbAfterUpload(row: MediaRow): Promise<void> {
   if (IS_DEMO) return; // 演示站的媒体都指向现成样例文件，缩略图走原图回落、封面走视频首帧，不用再生成
@@ -237,13 +262,10 @@ async function thumbAfterUpload(row: MediaRow): Promise<void> {
         const pathMod = await import("node:path");
         const dir = await mkdtemp(pathMod.join(os.tmpdir(), "poster-"));
         try {
-          const url = ossGetUrl(row.filename, 600);
-          let res = await fetch(internalOssUrl(url)).catch(() => null);
-          if (!res?.ok) res = await fetch(url).catch(() => null);
-          if (!res?.ok) throw new Error(`拉视频失败 (${res?.status ?? "网络"})`);
           const tmp = pathMod.join(dir, "in.bin");
-          const buf = Buffer.from(await res.arrayBuffer());
-          await writeFile(tmp, buf);
+          // 流式落到临时文件：整段视频（可以到 GB 级）不再 arrayBuffer 进内存
+          const url = ossGetUrl(row.filename, 600);
+          await fetchToFile([internalOssUrl(url), url], tmp);
           await enrichMediaMeta(row, tmp).catch(() => undefined);
           await makePoster(row.id, tmp);
         } finally {
@@ -268,16 +290,24 @@ async function thumbAfterUpload(row: MediaRow): Promise<void> {
       return;
     }
     if (row.kind === "photo") {
-      let input: Buffer | null = null;
       if (storageMode() === "oss") {
-        let res = await fetch(internalOssUrl(ossGetUrl(row.filename))).catch(() => null);
-        if (!res?.ok) res = await fetch(ossGetUrl(row.filename)).catch(() => null);
-        if (res?.ok) input = Buffer.from(await res.arrayBuffer());
+        // OSS：流式拉到临时文件再生成，不把整张原图（可能几十 MB）读进内存
+        const { mkdtemp, rm } = await import("node:fs/promises");
+        const os = await import("node:os");
+        const pathMod = await import("node:path");
+        const dir = await mkdtemp(pathMod.join(os.tmpdir(), "thumb-"));
+        try {
+          const tmp = pathMod.join(dir, "in.bin");
+          const url = ossGetUrl(row.filename);
+          await fetchToFile([internalOssUrl(url), url], tmp);
+          await makeThumb(row.id, tmp);
+        } finally {
+          void rm(dir, { recursive: true, force: true });
+        }
       } else {
-        const { readFile } = await import("node:fs/promises");
-        input = await readFile(mediaPath(row)).catch(() => null);
+        // 本地：直接把路径喂给 sharp（libvips 自己流式读），不再 readFile 整图进内存
+        await makeThumb(row.id, mediaPath(row));
       }
-      if (input) await makeThumb(row.id, input);
     }
   } catch (e) {
     // 补图失败不阻塞上传，但留个日志好排查（ffmpeg 缺失 / 解不开之类）
@@ -333,14 +363,58 @@ export function prepareMediaUpload(name: string, rawMime: string): PrepareResult
   return { mediaId, key, uploadUrl: localDirectUrl(mediaId, mime, name), mime };
 }
 
-/** 第二步（local 模式）：PUT 进来的文件体落到本地 data/media */
-export async function saveLocalDirect(mediaId: string, mime: string, name: string, buf: Buffer): Promise<string> {
+/** 第二步（local 模式）：PUT 进来的文件体落到本地 data/media。
+ *  请求流一边收一边写（带背压），2GB 视频也只占几 MB 内存——不再整包读进内存。
+ *  先写 .part 再改名，中途断线不留半个文件。
+ *  超限/空体抛 UPLOAD_TOO_LARGE / UPLOAD_EMPTY，由调用方转成 413/400 */
+export async function saveLocalDirect(
+  mediaId: string,
+  mime: string,
+  name: string,
+  body: ReadableStream<Uint8Array>,
+): Promise<{ filename: string; bytes: number }> {
   const ext = extFor(mime, name);
   const filename = `${mediaId}${ext}`;
-  if (IS_DEMO) return filename; // 演示站：文件体直接丢弃，complete 入库时会换成样例
-  const { writeFile } = await import("node:fs/promises");
-  await writeFile(path.join(MEDIA_DIR, filename), buf);
-  return filename;
+  const { Readable } = await import("node:stream");
+  const source = Readable.fromWeb(body as unknown as NodeWebReadableStream<Uint8Array>);
+
+  if (IS_DEMO) {
+    // 演示站：收完就丢，不写盘（大小校验照做，complete 入库时会换成样例）
+    let received = 0;
+    for await (const chunk of source) {
+      received += (chunk as Buffer).byteLength;
+      if (received > MAX_UPLOAD_BYTES) throw new Error("UPLOAD_TOO_LARGE");
+    }
+    if (received === 0) throw new Error("UPLOAD_EMPTY");
+    return { filename, bytes: received };
+  }
+
+  const { createWriteStream } = await import("node:fs");
+  const { rename, unlink } = await import("node:fs/promises");
+  const { pipeline } = await import("node:stream/promises");
+  const dest = path.join(MEDIA_DIR, filename);
+  const part = `${dest}.part`;
+  await unlink(part).catch(() => undefined); // 上一次中断留下的半截，清掉重来
+  let received = 0;
+  try {
+    await pipeline(
+      source,
+      async function* guard(chunks: AsyncIterable<Uint8Array | Buffer>) {
+        for await (const chunk of chunks) {
+          received += chunk.byteLength;
+          if (received > MAX_UPLOAD_BYTES) throw new Error("UPLOAD_TOO_LARGE");
+          yield chunk as Buffer;
+        }
+      },
+      createWriteStream(part),
+    );
+    if (received === 0) throw new Error("UPLOAD_EMPTY");
+    await rename(part, dest);
+  } catch (e) {
+    await unlink(part).catch(() => undefined);
+    throw e;
+  }
+  return { filename, bytes: received };
 }
 
 /** 服务端转好的 JPEG 落位：local 写盘，oss 由服务端代传（用同一个签名规则） */

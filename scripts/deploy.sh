@@ -99,10 +99,12 @@ NEXT_DIST_DIR=.next-new nice -n 19 env NODE_OPTIONS=--max-old-space-size=768 npm
 test -f .next-new/BUILD_ID
 "
 else
-  step "4/6 上传本地构建产物（服务器零构建；排除 dev/cache/trace 后约 70MB）"
+  step "4/6 上传本地构建产物（服务器零构建；排除 dev/cache/trace/standalone 后约 70MB）"
   ssh "$HOST" "cd ~/$DIR && rm -rf .next-new && mkdir .next-new"
+  # standalone 是 output:"standalone"（Docker 部署）生成的自包含副本，
+  # 服务器走 next start 用不到，不传（否则体积翻倍）
   COPYFILE_DISABLE=1 tar --no-xattrs -czf - --exclude .DS_Store --exclude '._*' \
-    --exclude dev --exclude cache --exclude trace \
+    --exclude dev --exclude cache --exclude trace --exclude standalone \
     -C .next . \
     | ssh "$HOST" "
 set -e

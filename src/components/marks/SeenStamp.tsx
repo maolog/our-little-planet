@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/LocaleProvider";
 
 function stampLabel(iso: string): string {
   const d = new Date(iso);
@@ -13,6 +14,7 @@ function stampLabel(iso: string): string {
 /** 已阅印章：没盖时是一枚淡淡的虚线章「看过就盖个章」，点一下「啪」地盖实——
  *  红墨小圆章，微微歪斜，像真的按在纸上。每页只有一枚，盖过就一直在 */
 export function SeenStamp({ entryId, seenAt, className }: { entryId: string; seenAt: string | null; className?: string }) {
+  const t = useT();
   const [seen, setSeen] = useState<string | null>(seenAt);
   const [busy, setBusy] = useState(false);
   const reduce = useReducedMotion();
@@ -36,7 +38,7 @@ export function SeenStamp({ entryId, seenAt, className }: { entryId: string; see
   if (seen) {
     return (
       <motion.span
-        aria-label={`她看过啦，${stampLabel(seen)}`}
+        aria-label={t("stamp.seenAria", { date: stampLabel(seen) })}
         initial={reduce ? false : { scale: 1.8, opacity: 0, rotate: 20 }}
         animate={{ scale: 1, opacity: 1, rotate: 9 }}
         transition={{ type: "spring", stiffness: 320, damping: 15 }}
@@ -47,7 +49,7 @@ export function SeenStamp({ entryId, seenAt, className }: { entryId: string; see
         )}
         style={{ background: "color-mix(in srgb, var(--color-rose-deep) 6%, transparent)" }}
       >
-        <span>她看过啦</span>
+        <span>{t("stamp.seen")}</span>
         <span className="text-[10px] opacity-75">{stampLabel(seen)}</span>
       </motion.span>
     );
@@ -65,7 +67,7 @@ export function SeenStamp({ entryId, seenAt, className }: { entryId: string; see
         className
       )}
     >
-      {busy ? "盖章中…" : "看过就盖个章"}
+      {busy ? t("stamp.busy") : t("stamp.hint")}
     </button>
   );
 }

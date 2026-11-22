@@ -10,6 +10,8 @@ import { StickyNote } from "@/components/journal/StickyNote";
 import { TagDropdown } from "@/components/write/TagDropdown";
 import { Lightbox, type LightboxPhoto } from "./Lightbox";
 import { useToast } from "@/components/Toast";
+import { useT } from "@/i18n/LocaleProvider";
+import type { Dict } from "@/i18n";
 
 type AlbumItem = LightboxPhoto;
 
@@ -27,6 +29,7 @@ function WallQuickEdit({
   onSaved: (patch: { caption?: string | null; entryDate?: string }) => void;
 }) {
   const toast = useToast();
+  const t = useT();
   const [cap, setCap] = useState(caption ?? "");
   const [saving, setSaving] = useState(false);
   // 外部描述变了（比如灯箱里改完）同步进草稿：渲染期校正，比 effect 里 setState 稳
@@ -46,11 +49,11 @@ function WallQuickEdit({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "保存失败");
+        throw new Error(data.error ?? t("state.saveError"));
       }
       onSaved(patch);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "没保存上，再试一次", "error");
+      toast(e instanceof Error ? e.message : t("album.saveRetry"), "error");
     } finally {
       setSaving(false);
     }
@@ -64,7 +67,7 @@ function WallQuickEdit({
         value={cap}
         maxLength={300}
         disabled={saving}
-        placeholder="写句描述…"
+        placeholder={t("album.captionPlaceholder")}
         onChange={(e) => setCap(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.nativeEvent.isComposing) {
@@ -93,15 +96,15 @@ function WallQuickEdit({
           }}
           className="rounded-lg border border-ink/15 bg-paper px-2 py-1 font-round text-xs font-bold text-ink outline-none focus:border-rose"
         />
-        {saving && <span className="font-round text-[10px] font-bold text-ink-soft/70">保存中…</span>}
+        {saving && <span className="font-round text-[10px] font-bold text-ink-soft/70">{t("action.saving")}</span>}
       </div>
     </div>
   );
 }
 
-function monthLabel(m: string): string {
+function monthLabel(m: string, t: (key: keyof Dict, params?: Record<string, string | number>) => string): string {
   const [y, mo] = m.split("-");
-  return `${y} 年 ${Number(mo)} 月`;
+  return t("home.cal.month", { y, m: Number(mo) });
 }
 
 /** 月份索引贴上的数量徽章：单独一颗小圆标，不跟在文字后面（不然「9 月 36」看着像日期） */
@@ -131,6 +134,7 @@ export function AlbumGrid({
   knownTags?: string[];
 }) {
   const toast = useToast();
+  const t = useT();
   const [all, setAll] = useState(photos);
   const [month, setMonth] = useState<string>("all");
   const [tag, setTag] = useState<string>("all");
@@ -177,14 +181,14 @@ export function AlbumGrid({
     setBatchConfirm(false);
     let ok = 0;
     for (const id of ids) {
-      setBatchProgress(`正在删除 ${ok + 1}/${ids.length}…`);
+      setBatchProgress(t("album.deleting", { cur: ok + 1, total: ids.length }));
       const res = await fetch(`/api/media/${id}?force=1`, { method: "DELETE" }).catch(() => null);
       if (res && res.ok) ok++;
     }
     setBatchProgress(null);
     setAll((prev) => prev.filter((p) => !selected.has(p.id)));
     setSelected(new Set());
-    toast(ok === ids.length ? `已删除 ${ok} 张（OSS 里的文件也一起清了）` : `删了 ${ok}/${ids.length} 张，没删成功的可以再选一次`);
+    toast(ok === ids.length ? t("album.deletedAll", { n: ok }) : t("album.deletedPartial", { ok, total: ids.length }));
   }
 
   // 确认态 3 秒没人点就自动收回
@@ -209,7 +213,7 @@ export function AlbumGrid({
     setTagPanel(false);
     let ok = 0;
     for (const id of ids) {
-      setBatchProgress(`正在贴标签 ${ok + 1}/${ids.length}…`);
+      setBatchProgress(t("album.tagging", { cur: ok + 1, total: ids.length }));
       const current = all.find((p) => p.id === id);
       const merged = sanitizeTags([...(current?.tags ?? []), ...adding]);
       const res = await fetch(`/api/media/${id}`, {
@@ -226,8 +230,8 @@ export function AlbumGrid({
     setTagsToAdd([]);
     toast(
       ok === ids.length
-        ? `已给 ${ok} 张贴上「${adding.join("、")}」`
-        : `贴上了 ${ok}/${ids.length} 张，没贴成功的可以再选一次`
+        ? t("album.taggedAll", { n: ok, tags: adding.join("、") })
+        : t("album.taggedPartial", { ok, total: ids.length })
     );
   }
 
@@ -331,7 +335,7 @@ export function AlbumGrid({
             month === "all" ? "-translate-y-px bg-rose-deep text-paper shadow-md" : "border border-ink/20 text-ink-soft hover:bg-ink/5"
           )}
         >
-          全部
+          {t("filter.all")}
           <CountBadge n={monthAllN} active={month === "all"} />
         </button>
         {months.map(([m, n]) => (
@@ -349,7 +353,7 @@ export function AlbumGrid({
                 : "border border-ink/20 text-ink-soft hover:bg-ink/5"
             )}
           >
-            {monthLabel(m)}
+            {monthLabel(m, t)}
             <CountBadge n={n} active={month === m} />
           </button>
         ))}
@@ -363,11 +367,11 @@ export function AlbumGrid({
               setDay(e.target.value);
               if (e.target.value) setMonth(e.target.value.slice(0, 7));
             }}
-            aria-label="按具体日期筛选"
+            aria-label={t("album.filterDate")}
             className="bg-transparent font-round text-sm font-bold text-ink outline-none"
           />
           {day && (
-            <button type="button" onClick={() => setDay("")} aria-label="清除日期筛选" className="grid size-5 place-items-center rounded-full text-ink-soft transition hover:bg-ink/10 hover:text-ink">
+            <button type="button" onClick={() => setDay("")} aria-label={t("album.clearDate")} className="grid size-5 place-items-center rounded-full text-ink-soft transition hover:bg-ink/10 hover:text-ink">
               <X weight="bold" className="size-3" />
             </button>
           )}
@@ -392,7 +396,7 @@ export function AlbumGrid({
             )}
           >
             <PencilSimple weight="bold" className="size-3.5" />
-            {manage ? "完成" : "管理"}
+            {manage ? t("action.done") : t("album.manage")}
           </button>
         )}
       </div>
@@ -401,9 +405,9 @@ export function AlbumGrid({
       <div className="mb-6 flex flex-wrap items-center gap-2">
         {(
           [
-            ["all", `全部 ${kindAllN}`],
-            ["photo", `照片 ${photoN}`],
-            ["video", `视频 ${videoN}`],
+            ["all", t("album.kindAll", { n: kindAllN })],
+            ["photo", t("album.kindPhoto", { n: photoN })],
+            ["video", t("album.kindVideo", { n: videoN })],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -444,7 +448,7 @@ export function AlbumGrid({
 
       {shown.length === 0 && (
         <p className="card-paper mx-auto max-w-md py-10 text-center text-ink-soft">
-          这组筛选下还没有照片——换个月份、日期或标签试试？
+          {t("album.emptyFiltered")}
         </p>
       )}
 
@@ -466,7 +470,13 @@ export function AlbumGrid({
                   type="button"
                   className={cn("relative block w-full", manage ? "cursor-pointer" : "cursor-zoom-in")}
                   onClick={() => (manage ? toggleSelect(p.id) : setIndex(i))}
-                  aria-label={manage ? (sel ? `取消选择 ${p.caption ?? "这张"}` : `选择 ${p.caption ?? "这张"}`) : p.caption ?? "放大看这张照片"}
+                  aria-label={
+                    manage
+                      ? sel
+                        ? t("album.unselect", { name: p.caption ?? t("album.thisOne") })
+                        : t("album.select", { name: p.caption ?? t("album.thisOne") })
+                      : p.caption ?? t("home.flip.zoom")
+                  }
                   aria-pressed={manage ? sel : undefined}
                 >
                   {manage && (
@@ -487,7 +497,7 @@ export function AlbumGrid({
                       poster={p.kind === "video" ? (p.posterUrl ?? null) : null}
                       hevc={p.hevc}
                       caption={p.caption}
-                      alt={p.caption ?? "我们的照片"}
+                      alt={p.caption ?? t("home.photoAlt")}
                       tags={p.tags}
                       tilt={tiltOf(p.id)}
                       tone={pickOf(p.id, ["rose", "butter", "mist", "peach", "matcha"])}
@@ -507,7 +517,7 @@ export function AlbumGrid({
                     <button
                       type="button"
                       onClick={() => setEditingId((prev) => (prev === p.id ? null : p.id))}
-                      aria-label={editingId === p.id ? "收起编辑" : "改这张的描述和日期"}
+                      aria-label={editingId === p.id ? t("album.collapseEdit") : t("album.editCard")}
                       aria-expanded={editingId === p.id}
                       className="absolute bottom-2 right-2 z-10 grid size-7 place-items-center rounded-full bg-paper/85 text-ink shadow transition hover:bg-paper"
                     >
@@ -551,7 +561,7 @@ export function AlbumGrid({
       {manage && !batchProgress && (
         <div className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 flex-wrap items-center justify-center gap-3 rounded-full bg-ink px-5 py-2.5 text-paper shadow-lifted">
           <span className="font-round text-xs font-bold tracking-wider text-paper/80">
-            {selected.size > 0 ? `已选 ${selected.size} 张` : "点照片勾选"}
+            {selected.size > 0 ? t("album.selectedN", { n: selected.size }) : t("album.tapToSelect")}
           </span>
           <button
             type="button"
@@ -562,7 +572,7 @@ export function AlbumGrid({
             className="flex items-center gap-1.5 rounded-full bg-paper/15 px-3.5 py-1.5 text-xs font-bold transition hover:bg-paper/30"
           >
             <CheckSquare weight="bold" className="size-3.5" />
-            {selected.size === shown.length && shown.length > 0 ? "取消全选" : "全选本组"}
+            {selected.size === shown.length && shown.length > 0 ? t("album.clearSelect") : t("album.selectAllGroup")}
           </button>
           {selected.size > 0 && (
             <button
@@ -578,7 +588,7 @@ export function AlbumGrid({
               )}
             >
               <Tag weight="bold" className="size-3.5" />
-              贴标签
+              {t("album.tag")}
             </button>
           )}
           {selected.size > 0 && (
@@ -594,7 +604,7 @@ export function AlbumGrid({
               )}
             >
               <Trash weight="bold" className="size-3.5" />
-              {batchConfirm ? `确认删除 ${selected.size} 张？` : `删除所选`}
+              {batchConfirm ? t("album.confirmDelete", { n: selected.size }) : t("album.deleteSelected")}
             </button>
           )}
         </div>
@@ -603,13 +613,13 @@ export function AlbumGrid({
       {manage && tagPanel && !batchProgress && selected.size > 0 && (
         <div className="fixed bottom-20 left-1/2 z-40 w-[min(92vw,26rem)] -translate-x-1/2 rounded-2xl bg-card p-4 shadow-lifted">
           <p className="mb-2 text-sm font-bold text-ink">
-            给选中的 {selected.size} 张贴标签
+            {t("album.tagPanelTitle", { n: selected.size })}
           </p>
           <div className="relative">
             <input
               value={tagDraft}
               maxLength={20}
-              placeholder="输入标签名，回车贴上…"
+              placeholder={t("album.tagPlaceholder")}
               onChange={(e) => setTagDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) {
@@ -632,17 +642,17 @@ export function AlbumGrid({
           </div>
           {tagsToAdd.length > 0 && (
             <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {tagsToAdd.map((t) => (
+              {tagsToAdd.map((tg) => (
                 <span
-                  key={t}
+                  key={tg}
                   className="flex items-center gap-1 rounded-full border border-ink/15 bg-paper px-2.5 py-1 text-xs font-bold text-ink"
                 >
-                  <span className="size-2 rounded-full" style={{ background: tagColor(t) }} aria-hidden />
-                  {t}
+                  <span className="size-2 rounded-full" style={{ background: tagColor(tg) }} aria-hidden />
+                  {tg}
                   <button
                     type="button"
-                    onClick={() => setTagsToAdd((prev) => prev.filter((x) => x !== t))}
-                    aria-label={`去掉标签 ${t}`}
+                    onClick={() => setTagsToAdd((prev) => prev.filter((x) => x !== tg))}
+                    aria-label={t("album.removeTag", { t: tg })}
                     className="grid size-4 place-items-center rounded-full text-ink-soft transition hover:bg-ink/10 hover:text-ink"
                   >
                     <X weight="bold" className="size-2.5" />
@@ -652,11 +662,11 @@ export function AlbumGrid({
             </div>
           )}
           <p className="mt-2.5 text-xs text-ink-soft">
-            新标签会和照片已有的合并（每张最多 {MAX_TAGS_PER_ENTRY} 个）
+            {t("album.tagMergeNote", { n: MAX_TAGS_PER_ENTRY })}
           </p>
           <div className="mt-3 flex justify-end gap-2">
             <button type="button" onClick={() => setTagPanel(false)} className="btn-ghost px-3 py-1.5 text-xs">
-              取消
+              {t("action.cancel")}
             </button>
             <button
               type="button"
@@ -670,7 +680,7 @@ export function AlbumGrid({
               )}
             >
               <Tag weight="bold" className="size-3.5" />
-              贴到 {selected.size} 张上
+              {t("album.tagApplyTo", { n: selected.size })}
             </button>
           </div>
         </div>

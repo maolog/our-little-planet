@@ -1,6 +1,7 @@
 import { Heart } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/lib/cn";
 import { tiltOf } from "@/lib/tilt";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 信封：未读封着火漆，读过的露出信纸一角 */
 export function Envelope({
@@ -14,12 +15,13 @@ export function Envelope({
   read: boolean;
   onOpen: () => void;
 }) {
+  const t = useT();
   const tilt = tiltOf(`${date}-${index}`, 3);
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`拆开 ${date} 的信`}
+      aria-label={t("letter.open", { date })}
       className="group block w-full cursor-pointer"
     >
       <div

@@ -1,0 +1,64 @@
+/** 顶部导航 + 锁屏 + 演示角标文案——简体基准 */
+export const zhCN = {
+  // 顶栏页签
+  "nav.tab.home": "首页",
+  "nav.tab.journal": "手账",
+  "nav.tab.album": "相册",
+  "nav.tab.quotes": "语录",
+  "nav.tab.letters": "信箱",
+  "nav.tab.timeline": "大事记",
+  "nav.tab.screenings": "放映室",
+  "nav.writeCta": "记一笔",
+  "nav.backToWrite": "回到写作后台",
+  "nav.lockAria": "{name}的专属入口",
+  "nav.prev": "上一张",
+  "nav.next": "下一张",
+  "nav.lockTitle": "{name}的专属：输密码进来",
+
+  // 配色 / 明暗切换
+  "nav.palette.label": "切换配色主题",
+  "nav.palette.rose": "玫瑰奶油",
+  "nav.palette.sakura": "樱花",
+  "nav.palette.lavender": "薰衣草",
+  "nav.palette.peach": "蜜桃",
+  "nav.theme.toLight": "切换到白天模式",
+  "nav.theme.toDark": "切换到夜间模式",
+
+  // 锁屏 LockForm
+  "lock.title.opened": "锁扣弹开啦",
+  "lock.title.closed": "这是{name}的专属",
+  "lock.sub.opened": "封面正在翻开……",
+  "lock.sub.closed": "这本手账大部分内容只给她看，输密码就能以她的身份进来",
+  "lock.placeholder": "嗯…是哪个日子来着",
+  "lock.aria": "解锁密码",
+  "lock.error.wrong": "密码好像不对哦，再想想？",
+  "lock.error.network": "网络好像打了个盹，再试一次？",
+  "lock.cta.opened": "翻开啦",
+  "lock.cta.busy": "正在开锁…",
+  "lock.cta.closed": "解开锁扣",
+  "lock.guest": "先随便逛逛（访客模式）",
+  "lock.psst": "psst. 忘了的话，只有他知道",
+  "lock.demoHint": "演示站：解锁密码 {password}",
+  "lock.close": "合上本子",
+  "lock.closing": "正在合上…",
+  "lock.guest.title": "「{section}」是{reader}的专属",
+  "lock.guest.sub": "这里的回忆只给两个人看。要是有密码，就进来吧",
+  "lock.guest.cta": "输密码进入",
+  "lock.book.title": "我们的故事",
+  "lock.book.openMsg": "翻开啦，都在里面",
+  "lock.book.closeMsg": "合上本子，明天继续写",
+  "lock.book.coverUs": "我们俩",
+  "lock.book.coverJournal": "的手账",
+
+  // 演示角标 DemoBadge
+  "demo.title": "这是公开演示站 🌱",
+  "demo.body1":
+    "手账里的内容都是样例。你写的、传的任何东西都只是演示：内容每 {n} 分钟自动重置，上传的照片 / 视频 / 语音会换成内置的样例素材，不会真的保存。",
+  "demo.body2": "可以随便玩：解锁、写作、盖章、回话、拆彩蛋都试试。",
+  "demo.pwReader": "解锁密码",
+  "demo.pwAuthor": "作者口令（/write）",
+  "demo.pillOpen": "演示站·收起",
+  "demo.pillClosed": "演示站·密码在这",
+} as const;
+
+export type NavMessages = typeof zhCN;

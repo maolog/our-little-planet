@@ -6,10 +6,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { MagnifyingGlassPlus, X } from "@phosphor-icons/react";
 import { BoardView } from "./BoardView";
 import { useMounted } from "@/lib/use-mounted";
+import { useT } from "@/i18n/LocaleProvider";
 import type { BoardLayout } from "@/lib/board";
 
 /** 拼贴页放大查看：点击整页 → 全屏遮罩里看大图，Esc / 点空白关闭 */
 export function BoardZoom({ layout }: { layout: BoardLayout | null }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   // portal 到 body 用：首帧（SSR/hydration）不渲染，挂载后再挂
   const mounted = useMounted();
@@ -54,7 +56,7 @@ export function BoardZoom({ layout }: { layout: BoardLayout | null }) {
           </div>
           <button
             type="button"
-            aria-label="关闭"
+            aria-label={t("action.close")}
             onClick={() => setOpen(false)}
             className="fixed right-4 top-4 grid size-11 place-items-center rounded-full bg-paper/15 text-paper backdrop-blur transition hover:bg-paper/30"
           >
@@ -67,7 +69,7 @@ export function BoardZoom({ layout }: { layout: BoardLayout | null }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="group relative block w-full cursor-zoom-in" aria-label="放大看这一页">
+      <button type="button" onClick={() => setOpen(true)} className="group relative block w-full cursor-zoom-in" aria-label={t("journal.zoomPage")}>
         <BoardView layout={layout} />
         <span className="absolute bottom-2.5 right-2.5 grid size-8 place-items-center rounded-full bg-ink/45 text-paper opacity-0 backdrop-blur transition group-hover:opacity-100">
           <MagnifyingGlassPlus weight="bold" className="size-4" />

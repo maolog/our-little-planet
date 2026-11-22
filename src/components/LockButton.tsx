@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { Lock } from "@phosphor-icons/react";
 import { BookFlip } from "@/components/lock/BookFlip";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 合上本子：全屏演一段「合上封面」，再清掉解锁 cookie 回到锁页 */
 export function LockButton() {
+  const t = useT();
   const [closing, setClosing] = useState(false);
   return (
     <>
@@ -16,7 +18,7 @@ export function LockButton() {
         className="inline-flex items-center gap-1.5 rounded-full border border-ink/20 px-4 py-1.5 text-sm font-bold text-ink-soft transition hover:bg-ink/5 hover:text-ink"
       >
         <Lock className="size-3.5" />
-        {closing ? "正在合上…" : "合上本子"}
+        {closing ? t("lock.closing") : t("lock.close")}
       </button>
       {closing && (
         <BookFlip

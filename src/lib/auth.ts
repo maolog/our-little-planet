@@ -1,12 +1,29 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 
 export const READER_COOKIE = "journal_key"; // 读者：能翻开本子
 export const AUTHOR_COOKIE = "journal_pen"; // 作者：能写
 export const SOMEDAY_COOKIE = "journal_someday"; // Someday 彩蛋：揭晓后解锁
 
+/** 常量时间字符串比较：口令、签名、cookie 摘要都走这里，
+ *  避免 `===` 按字节提前返回被时序侧信道逐位猜出内容 */
+export function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
+
 export function authSecret(): string {
-  return process.env.AUTH_SECRET ?? "insecure-dev-secret-change-me";
+  const secret = process.env.AUTH_SECRET;
+  if (secret) return secret;
+  // 构建期也会加载本模块（NEXT_PHASE 兜底），只有真正跑生产请求才拒绝：
+  // 没有密钥 = 所有 cookie 签名都用同一个公开兜底值，等于没有鉴权
+  if (process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build") {
+    throw new Error(
+      "AUTH_SECRET 未设置：生产环境必须配置随机长字符串（见 .env.example），否则等于没有鉴权",
+    );
+  }
+  return "insecure-dev-secret-change-me";
 }
 
 /** cookie 里存的不是密码，是 密钥+角色 的 SHA-256 摘要 */
@@ -41,7 +58,7 @@ function validAuthorToken(raw: string | undefined): boolean {
   if (Date.now() - issuedAt > authorSessionHours() * 3600_000) return false;
   if (issuedAt - Date.now() > 60_000) return false; // 容忍 1 分钟时钟偏差
   const expect = createHash("sha256").update(`${authSecret()}:author:${issuedAt}`).digest("hex");
-  return expect === sig;
+  return safeEqual(expect, sig);
 }
 
 /** 作者 cookie 的时效：勾了「记住这台设备」给 30 天，否则按 AUTHOR_SESSION_HOURS */
@@ -56,12 +73,15 @@ export function checkPassword(role: "reader" | "author", input: unknown): boolea
     role === "reader"
       ? process.env.READER_PASSWORD ?? "0520"
       : process.env.AUTHOR_PASSWORD ?? "write-for-her";
-  return input === expected;
+  return safeEqual(input, expected);
 }
 
 export async function isReader(): Promise<boolean> {
   const c = await cookies();
-  return c.get(READER_COOKIE)?.value === tokenFor("reader") || c.get(AUTHOR_COOKIE)?.value === tokenFor("author");
+  return (
+    safeEqual(c.get(READER_COOKIE)?.value ?? "", tokenFor("reader")) ||
+    safeEqual(c.get(AUTHOR_COOKIE)?.value ?? "", tokenFor("author"))
+  );
 }
 
 export async function isAuthor(): Promise<boolean> {
@@ -73,14 +93,14 @@ export async function isAuthor(): Promise<boolean> {
 export async function isSomedayUnlocked(): Promise<boolean> {
   if (await isAuthor()) return true;
   const c = await cookies();
-  return c.get(SOMEDAY_COOKIE)?.value === tokenFor("someday");
+  return safeEqual(c.get(SOMEDAY_COOKIE)?.value ?? "", tokenFor("someday"));
 }
 
 /** 单个彩蛋是否已解锁（每个彩蛋独立 cookie） */
 export async function isEggUnlocked(eggId: string): Promise<boolean> {
   if (await isAuthor()) return true;
   const c = await cookies();
-  return c.get(`egg_${eggId}`)?.value === tokenFor(`egg:${eggId}`);
+  return safeEqual(c.get(`egg_${eggId}`)?.value ?? "", tokenFor(`egg:${eggId}`));
 }
 
 /** 彩蛋解锁 cookie 名 */

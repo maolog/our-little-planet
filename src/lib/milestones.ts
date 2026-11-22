@@ -1,6 +1,6 @@
 import { db, type MediaRow } from "./db";
 import { newId, nowISO } from "./ids";
-import { getMediaById, publicMedia } from "./media";
+import { publicMedia } from "./media";
 import type { PublicMedia } from "./entries";
 import { isStickerName, type StickerName } from "@/components/journal/Sticker";
 
@@ -42,16 +42,31 @@ export type MilestoneInput = {
   visibility?: "public" | "private";
 };
 
-function rowToMilestone(r: MilestoneRow): Milestone {
-  let ids: string[] = [];
+/** 解析 media_ids（不查库，供批量装载用） */
+function parseMilestoneIds(r: MilestoneRow): string[] {
   try {
     const parsed = JSON.parse(r.media_ids);
-    if (Array.isArray(parsed)) ids = parsed.filter((x): x is string => typeof x === "string");
+    if (Array.isArray(parsed)) return parsed.filter((x): x is string => typeof x === "string");
   } catch {
     /* 坏 JSON 当空处理 */
   }
-  const media = ids
-    .map((id) => getMediaById(id))
+  return [];
+}
+
+/** 一批媒体 id → 行缓存（一条 IN 查询，替代逐个 getMediaById） */
+function mediaRowsByIds(ids: string[]): Map<string, MediaRow> {
+  const unique = [...new Set(ids)];
+  const map = new Map<string, MediaRow>();
+  if (unique.length === 0) return map;
+  const ph = unique.map(() => "?").join(",");
+  const rows = db.prepare(`SELECT * FROM media WHERE id IN (${ph})`).all(...unique) as MediaRow[];
+  for (const row of rows) map.set(row.id, row);
+  return map;
+}
+
+function buildMilestone(r: MilestoneRow, mediaRows: Map<string, MediaRow>): Milestone {
+  const media = parseMilestoneIds(r)
+    .map((id) => mediaRows.get(id))
     .filter((m): m is MediaRow => Boolean(m))
     // 时间轴已经通过读者锁，OSS 模式直接下发短时签名地址，省掉每张图一次应用层检查和跳转。
     .map((m) => publicMedia(m, { direct: true }));
@@ -74,7 +89,9 @@ export function listMilestones(opts: { guest?: boolean } = {}): Milestone[] {
       ? db.prepare("SELECT * FROM milestones WHERE visibility = 'public' ORDER BY m_date ASC, created_at ASC")
       : db.prepare("SELECT * FROM milestones ORDER BY m_date ASC, created_at ASC")
   ).all() as MilestoneRow[];
-  return rows.map(rowToMilestone);
+  // 所有大事记的媒体 id 攒齐一次查回（原来每条大事记逐个查）
+  const mediaRows = mediaRowsByIds(rows.flatMap(parseMilestoneIds));
+  return rows.map((r) => buildMilestone(r, mediaRows));
 }
 
 function sanitizeInput(input: MilestoneInput) {
@@ -95,7 +112,7 @@ export function createMilestone(input: MilestoneInput): Milestone {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(id, clean.title, clean.body, clean.date, clean.icon, JSON.stringify(clean.mediaIds), input.visibility === "public" ? "public" : "private", now, now);
   const row = db.prepare("SELECT * FROM milestones WHERE id = ?").get(id) as MilestoneRow;
-  return rowToMilestone(row);
+  return buildMilestone(row, mediaRowsByIds(parseMilestoneIds(row)));
 }
 
 export function updateMilestone(id: string, input: MilestoneInput): Milestone {
@@ -113,7 +130,7 @@ export function updateMilestone(id: string, input: MilestoneInput): Milestone {
   );
   const row = db.prepare("SELECT * FROM milestones WHERE id = ?").get(id) as MilestoneRow | undefined;
   if (!row) throw new Error("这条大事记不存在");
-  return rowToMilestone(row);
+  return buildMilestone(row, mediaRowsByIds(parseMilestoneIds(row)));
 }
 
 function getMilestoneVisibility(id: string): "public" | "private" {

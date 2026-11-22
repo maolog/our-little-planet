@@ -45,3 +45,8 @@ next-env.d.ts
 
 # 手账数据（照片和数据库，备份就备份这个文件夹）
 /data/
+
+# 项目无关文件
+CLAUDE.MD
+DESIGN.MD
+AGENTS.MD

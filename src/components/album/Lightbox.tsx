@@ -7,6 +7,7 @@ import { CaretLeft, CaretRight, X } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
 import { useMounted } from "@/lib/use-mounted";
 import { CaptionQuickEdit, MediaDateEdit, MediaDeleteButton } from "@/components/CaptionQuickEdit";
+import { useT } from "@/i18n/LocaleProvider";
 
 export type LightboxPhoto = {
   id: string;
@@ -56,6 +57,7 @@ export function Lightbox({
   onDateChange?: (id: string, date: string) => void;
   onDelete?: (id: string) => void;
 }) {
+  const t = useT();
   const open = index !== null && index >= 0 && index < photos.length;
   const photo = open ? photos[index!] : null;
   const isVideo = Boolean(photo && photo.kind === "video");
@@ -165,7 +167,7 @@ export function Lightbox({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={photo.url}
-                    alt={photo.caption ?? "我们的照片"}
+                    alt={photo.caption ?? t("home.photoAlt")}
                     draggable={false}
                     className="max-h-[72vh] max-w-full"
                   />
@@ -193,7 +195,7 @@ export function Lightbox({
                   {liveWarming && (
                     <span className="pointer-events-none absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-ink/55 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] text-paper backdrop-blur">
                       <span className="size-1.5 animate-pulse rounded-full bg-butter" />
-                      实况加载中
+                      {t("album.liveLoading")}
                     </span>
                   )}
                 </div>
@@ -264,14 +266,14 @@ export function Lightbox({
                     }}
                     className="rounded-full bg-rose-deep px-3 py-1 text-xs font-bold tracking-[0.15em] text-paper transition hover:opacity-85"
                   >
-                    {livePlaying ? "停止" : "LIVE 回放"}
+                    {livePlaying ? t("album.liveStop") : t("album.livePlay")}
                   </button>
                 )}
               </div>
             </figcaption>
             {videoBroken && (
               <p className="mt-2 max-w-md text-center font-round text-sm leading-relaxed text-paper/80">
-                这个浏览器放不了这段视频{photo?.hevc ? "（HEVC 编码）" : ""}，用 iPhone / Mac 打开没问题。
+                {photo?.hevc ? t("album.videoBrokenHevc") : t("album.videoBroken")}
               </p>
             )}
           </motion.figure>
@@ -286,7 +288,7 @@ export function Lightbox({
 
           <button
             type="button"
-            aria-label="上一张"
+            aria-label={t("nav.prev")}
             onClick={(e) => {
               e.stopPropagation();
               go(-1);
@@ -297,7 +299,7 @@ export function Lightbox({
           </button>
           <button
             type="button"
-            aria-label="下一张"
+            aria-label={t("nav.next")}
             onClick={(e) => {
               e.stopPropagation();
               go(1);
@@ -308,7 +310,7 @@ export function Lightbox({
           </button>
           <button
             type="button"
-            aria-label="关闭"
+            aria-label={t("action.close")}
             onClick={onClose}
             className={cn("absolute right-4 top-4 grid size-11 place-items-center rounded-full bg-paper/15 text-paper backdrop-blur transition hover:bg-paper/30")}
           >

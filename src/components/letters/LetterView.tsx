@@ -9,6 +9,7 @@ import { EntryText } from "@/components/journal/EntryText";
 import { WashiTape } from "@/components/journal/WashiTape";
 import { SeenStamp } from "@/components/marks/SeenStamp";
 import { CommentBox, type ReplyItem } from "@/components/marks/CommentBox";
+import { useT } from "@/i18n/LocaleProvider";
 
 export type LetterData = {
   id: string;
@@ -34,6 +35,7 @@ export function LetterView({
   author: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const reduce = useReducedMotion();
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export function LetterView({
             <p className="font-script text-3xl leading-none text-rose-deep">
               {letter.entryDate.replaceAll("-", ".")}
             </p>
-            <h2 className="mt-3 text-3xl font-bold">{letter.title ?? "写给你"}</h2>
+            <h2 className="mt-3 text-3xl font-bold">{letter.title ?? t("letter.forYou")}</h2>
 
             <div className="mt-8">
               <EntryText text={letter.body} lined />
@@ -92,7 +94,7 @@ export function LetterView({
 
             <button
               type="button"
-              aria-label="折好放回"
+              aria-label={t("letter.foldBack")}
               onClick={onClose}
               className="absolute right-3 top-3 grid size-9 place-items-center rounded-full text-ink-soft/60 transition hover:bg-ink/10 hover:text-ink"
             >
@@ -101,8 +103,8 @@ export function LetterView({
             {author && (
               <Link
                 href={`/write?edit=${letter.id}`}
-                aria-label="编辑这封信"
-                title="编辑这封信"
+                aria-label={t("letter.edit")}
+                title={t("letter.edit")}
                 className="absolute left-3 top-3 grid size-9 place-items-center rounded-full text-ink-soft/60 transition hover:bg-ink/10 hover:text-ink"
               >
                 <PencilSimple className="size-4" />

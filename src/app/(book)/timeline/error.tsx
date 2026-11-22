@@ -1,16 +1,19 @@
 "use client";
 
+import { useT } from "@/i18n/LocaleProvider";
+
 /** 时间轴的错误边界：客户端渲染崩了也能看到具体报错，而不是无声的空白页 */
 export default function TimelineError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const t = useT();
   return (
     <div className="card-paper mx-auto mt-16 flex max-w-md flex-col items-center gap-4 px-8 py-10 text-center">
-      <p className="text-lg font-bold">这一页渲染出错了</p>
+      <p className="text-lg font-bold">{t("error.pageTitle")}</p>
       <p className="break-all rounded-lg bg-rose-soft/60 px-3 py-2 font-round text-xs text-rose-deep">
         {error.message}
-        {error.digest ? `（${error.digest}）` : ""}
+        {error.digest ? t("error.digest", { digest: error.digest }) : ""}
       </p>
       <button type="button" onClick={reset} className="btn-primary">
-        再试一次
+        {t("state.retry")}
       </button>
     </div>
   );

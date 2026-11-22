@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { WashiTape } from "./WashiTape";
 import { tiltOf, type TapeTone } from "@/lib/tilt";
 import { tagColor } from "@/lib/tags";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 拍立得照片卡：白边相纸 + 手写注释，随手贴的微倾斜，
  *  hover 时像被拿起来；Live Photo 只亮 LIVE 角标，点开进灯箱用「LIVE 回放」按钮播放（带声音）；
@@ -60,6 +61,7 @@ export function PolaroidCard({
   noHover?: boolean;
   className?: string;
 }) {
+  const t = useT();
   const tapePos =
     tape === "center" ? "-top-3 left-1/2" : tape === "left" ? "-top-3 left-12" : tape === "right" ? "-top-3 right-6 left-auto translate-x-0" : "";
 
@@ -113,7 +115,7 @@ export function PolaroidCard({
             {/* eslint-disable-next-line @next/next/no-img-element -- 视频封面图，带鉴权的接口地址 */}
             <img
               src={poster ?? undefined}
-              alt={alt ?? caption ?? "视频封面"}
+              alt={alt ?? caption ?? t("thumb.videoPoster")}
               loading="lazy"
               decoding="async"
               draggable={false}
@@ -147,7 +149,7 @@ export function PolaroidCard({
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={imageSrc ?? undefined}
-            alt={alt ?? caption ?? "我们的照片"}
+            alt={alt ?? caption ?? t("journal.ourPhoto")}
             loading={fixedFrame ? "eager" : "lazy"}
             decoding="async"
             draggable={false}
@@ -157,12 +159,12 @@ export function PolaroidCard({
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-ink-soft/70">
             <Camera weight="duotone" className="size-10" />
-            <span className="text-sm">第一张照片等待中</span>
+            <span className="text-sm">{t("journal.firstPhoto")}</span>
           </div>
         )}
         {video && hevc && (
           <span
-            title="HEVC 编码：桌面 Chrome / Firefox 可能放不了，iPhone 和 Safari 没问题"
+            title={t("ef.hevcTitle")}
             className="absolute right-2.5 top-2.5 rounded-full bg-butter/95 px-2 py-0.5 text-[10px] font-bold text-[#5c4a42]"
           >
             HEVC

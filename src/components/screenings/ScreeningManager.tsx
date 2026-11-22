@@ -9,6 +9,7 @@ import { AlbumPickThumb } from "@/components/write/AlbumPickThumb";
 import type { AlbumPickItem } from "@/components/write/MilestoneManager";
 import type { Screening } from "@/lib/screenings";
 import { READER_NAME } from "@/lib/reader";
+import { useT } from "@/i18n/LocaleProvider";
 
 function fmtDur(sec: number | null): string {
   if (!sec || sec <= 0) return "";
@@ -31,6 +32,7 @@ function AlbumPicker({
   onPick: (item: AlbumPickItem) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -38,18 +40,18 @@ function AlbumPicker({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-lg font-bold">从本子里选</h3>
+          <h3 className="text-lg font-bold">{t("screening.pick")}</h3>
           <button
             type="button"
             onClick={onClose}
-            aria-label="关掉"
+            aria-label={t("action.close")}
             className="grid size-8 place-items-center rounded-full text-ink-soft transition hover:bg-ink/10 hover:text-ink"
           >
             <X weight="bold" className="size-4" />
           </button>
         </div>
         {items.length === 0 ? (
-          <p className="py-8 text-center text-sm text-ink-soft">本子里还没有能选的，先直接上传吧</p>
+          <p className="py-8 text-center text-sm text-ink-soft">{t("screening.pickEmpty")}</p>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {items.slice(0, 40).map((it) => (
@@ -86,6 +88,7 @@ function ScreeningForm({
   onCancel?: () => void;
 }) {
   const toast = useToast();
+  const t = useT();
   const [title, setTitle] = useState(editing?.title ?? "");
   const [subtitle, setSubtitle] = useState(editing?.subtitle ?? "");
   const [premiereAt, setPremiereAt] = useState(editing?.premiereAt ?? todayStr());
@@ -118,8 +121,8 @@ function ScreeningForm({
     if (as === "video") {
       setVideo(dto);
       setVideoFromAlbum(true);
-      setVideoName(item.caption || item.entryDate || "本子里的视频");
-      if (!title.trim()) setTitle((item.caption || item.entryDate || "一场首映").slice(0, 30));
+      setVideoName(item.caption || item.entryDate || t("screening.albumVideo"));
+      if (!title.trim()) setTitle((item.caption || item.entryDate || t("screening.defaultTitle")).slice(0, 30));
     } else {
       setCover(dto);
       setCoverFromAlbum(true);
@@ -140,7 +143,7 @@ function ScreeningForm({
   async function pickVideo(file: File | undefined) {
     if (!file) return;
     if (!file.type.startsWith("video/")) {
-      toast("选一个视频文件（mp4 / mov…）", "error");
+      toast(t("screening.videoKind"), "error");
       return;
     }
     setVideoName(file.name);
@@ -150,9 +153,9 @@ function ScreeningForm({
       const dto = await uploadFile(file, { onProgress: (loaded) => setVideoPct(Math.round((loaded / file.size) * 100)) });
       setVideo(dto);
       if (!title.trim()) setTitle(file.name.replace(/\.\w+$/, "").slice(0, 30));
-      toast("视频传好了，别忘了点保存排片");
+      toast(t("screening.videoOk"));
     } catch (e) {
-      toast(e instanceof Error ? e.message : "视频没传上，再试一次？", "error");
+      toast(e instanceof Error ? e.message : t("screening.videoFail"), "error");
       setVideoName("");
     }
   }
@@ -160,7 +163,7 @@ function ScreeningForm({
   async function pickCover(file: File | undefined) {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast("封面要选图片", "error");
+      toast(t("screening.coverKind"), "error");
       return;
     }
     setCoverFromAlbum(false);
@@ -168,7 +171,7 @@ function ScreeningForm({
       const dto = await uploadFile(file);
       setCover(dto);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "封面没传上", "error");
+      toast(e instanceof Error ? e.message : t("screening.coverFail"), "error");
     }
   }
 
@@ -177,7 +180,7 @@ function ScreeningForm({
     if (busy) return;
     const mediaId = editing ? video?.id ?? editing.video.id : video?.id;
     if (!title.trim() || !mediaId || !premiereAt) {
-      toast("片名、视频和首映日期都要有", "error");
+      toast(t("screening.needFields"), "error");
       return;
     }
     setBusy(true);
@@ -195,11 +198,11 @@ function ScreeningForm({
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { screening?: Screening; error?: string };
-      if (!res.ok || !data.screening) throw new Error(data.error ?? "没排上");
-      toast(editing ? "改好了，已保存" : "排好了，就等开演");
+      if (!res.ok || !data.screening) throw new Error(data.error ?? t("screening.saveFail"));
+      toast(editing ? t("screening.savedEdit") : t("screening.savedNew"));
       onSaved(data.screening, !editing);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "没排上，再试一次？", "error");
+      toast(e instanceof Error ? e.message : t("screening.saveRetry"), "error");
     } finally {
       setBusy(false);
     }
@@ -210,29 +213,29 @@ function ScreeningForm({
 
   return (
     <form onSubmit={submit} className="card-paper space-y-5">
-      <h2 className="text-xl font-bold">{editing ? `改《${editing.title}》` : "排一场新的首映"}</h2>
+      <h2 className="text-xl font-bold">{editing ? t("screening.editTitle", { title: editing.title }) : t("screening.newTitle")}</h2>
 
       {/* 完整视频：新上传（不进相册）或从本子里选一个已有的 */}
       <div>
-        <label className={labelCls}>完整视频（做好的成片，原样上传原样播放）</label>
+        <label className={labelCls}>{t("screening.videoLabel")}</label>
         {editing && !video && (
           <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-mist/50 px-3 py-1 text-sm font-bold text-ink">
             <FilmSlate weight="fill" className="size-4" />
-            已有视频{fmtDur(editing.video.duration) && ` · ${fmtDur(editing.video.duration)}`}，换新视频会替换
+            {t("screening.hasVideo", { dur: fmtDur(editing.video.duration) && ` · ${fmtDur(editing.video.duration)}` })}
           </p>
         )}
         {video ? (
           <div className="flex flex-wrap items-center gap-2.5">
             <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold text-ink", videoFromAlbum ? "bg-butter/70" : "bg-matcha/50")}>
               <Check weight="bold" className="size-4" />
-              {videoFromAlbum ? "来自本子的视频" : "新视频已传好"}
+              {videoFromAlbum ? t("screening.fromAlbumVideo") : t("screening.videoUploaded")}
               {videoFromAlbum ? `（${videoName.slice(0, 14)}）` : videoPct > 0 && videoPct < 100 ? `（${videoPct}%）` : ""}
             </span>
             <button
               type="button"
               onClick={() => dropPicked(setVideo, videoFromAlbum)(video)}
               className="grid size-7 place-items-center rounded-full text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep"
-              aria-label="不要这个视频了"
+              aria-label={t("screening.dropVideo")}
             >
               <X weight="bold" className="size-3.5" />
             </button>
@@ -245,7 +248,7 @@ function ScreeningForm({
               className="inline-flex items-center gap-1.5 rounded-full bg-rose-deep px-3.5 py-1.5 text-sm font-bold text-paper shadow-sm transition hover:-translate-y-0.5"
             >
               <UploadSimple weight="bold" className="size-4" />
-              上传视频文件
+              {t("screening.uploadVideo")}
             </button>
             <button
               type="button"
@@ -253,7 +256,7 @@ function ScreeningForm({
               className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 px-3.5 py-1.5 text-sm font-bold text-ink-soft transition hover:bg-ink/5 hover:text-ink"
             >
               <FilmSlate weight="bold" className="size-4" />
-              从本子里选
+              {t("screening.pick")}
             </button>
             {videoName && (
               <span className="inline-flex items-center gap-1.5 font-round text-sm tracking-wider text-ink-soft">
@@ -273,39 +276,39 @@ function ScreeningForm({
             e.target.value = "";
           }}
         />
-        <p className="mt-2 font-round text-[11px] tracking-wider text-ink-soft/60">上传的视频只属于放映室，不会出现在相册里</p>
+        <p className="mt-2 font-round text-[11px] tracking-wider text-ink-soft/60">{t("screening.videoNote")}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className={labelCls} htmlFor="sc-title">片名</label>
-          <input id="sc-title" value={title} onChange={(e) => setTitle(e.target.value)} className={fieldCls} placeholder="两个月 · 关于我们，也关于这个秘密" maxLength={60} />
+          <label className={labelCls} htmlFor="sc-title">{t("screening.titleField")}</label>
+          <input id="sc-title" value={title} onChange={(e) => setTitle(e.target.value)} className={fieldCls} placeholder={t("screening.titlePh")} maxLength={60} />
         </div>
         <div>
-          <label className={labelCls} htmlFor="sc-date">首映日期（那天自动开演）</label>
+          <label className={labelCls} htmlFor="sc-date">{t("screening.dateField")}</label>
           <input id="sc-date" type="date" value={premiereAt} onChange={(e) => setPremiereAt(e.target.value)} className={fieldCls} />
         </div>
       </div>
 
       <div>
-        <label className={labelCls} htmlFor="sc-sub">导演寄语（海报和放映页上的一句话，可不填）</label>
-        <input id="sc-sub" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={fieldCls} placeholder="那天你哭着笑的样子，我想留底" maxLength={120} />
+        <label className={labelCls} htmlFor="sc-sub">{t("screening.subtitleField")}</label>
+        <input id="sc-sub" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={fieldCls} placeholder={t("screening.subtitlePh")} maxLength={120} />
       </div>
 
       {/* 封面：可选；从本子里选或直接上传，都不选就用视频里的画面 */}
       <div>
-        <label className={labelCls}>海报封面（可选；不选就用视频里的画面）</label>
+        <label className={labelCls}>{t("screening.coverField")}</label>
         <div className="flex flex-wrap items-center gap-2.5">
           {cover ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element -- 走带鉴权的 /api/media */}
               <img src={cover.thumbUrl ?? cover.url} alt="" className="size-16 rounded-lg border border-ink/10 object-cover" />
-              {coverFromAlbum && <span className="rounded-full bg-butter/70 px-2 py-0.5 text-xs font-bold text-ink">来自本子</span>}
+              {coverFromAlbum && <span className="rounded-full bg-butter/70 px-2 py-0.5 text-xs font-bold text-ink">{t("screening.fromAlbum")}</span>}
               <button
                 type="button"
                 onClick={() => dropPicked(setCover, coverFromAlbum)(cover)}
                 className="grid size-7 place-items-center rounded-full text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep"
-                aria-label="不要这张封面了"
+                aria-label={t("screening.dropCover")}
               >
                 <X weight="bold" className="size-3.5" />
               </button>
@@ -318,7 +321,7 @@ function ScreeningForm({
                 className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 px-3.5 py-1.5 text-sm font-bold text-ink-soft transition hover:bg-ink/5 hover:text-ink"
               >
                 <ImageSquare weight="bold" className="size-4" />
-                上传一张海报图
+                {t("screening.uploadCover")}
               </button>
               <button
                 type="button"
@@ -326,7 +329,7 @@ function ScreeningForm({
                 className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 px-3.5 py-1.5 text-sm font-bold text-ink-soft transition hover:bg-ink/5 hover:text-ink"
               >
                 <ImageSquare weight="bold" className="size-4" />
-                从本子里选
+                {t("screening.pick")}
               </button>
             </>
           )}
@@ -350,8 +353,8 @@ function ScreeningForm({
         className="flex w-full items-center justify-between gap-4 rounded-2xl border-2 border-ink/10 bg-paper px-4 py-3 text-left transition hover:border-ink/25"
       >
         <span>
-          <span className="block text-sm font-bold">{isPublic ? "访客可见" : `仅${READER_NAME}可见`}</span>
-          <span className="mt-0.5 block text-xs text-ink-soft">{isPublic ? "栏目也开了公开时，访客能看这一场" : `只有输密码进来的${READER_NAME}能看`}</span>
+          <span className="block text-sm font-bold">{isPublic ? t("screening.publicVis") : t("screening.readerVis", { reader: READER_NAME })}</span>
+          <span className="mt-0.5 block text-xs text-ink-soft">{isPublic ? t("screening.publicHint") : t("screening.readerHint", { reader: READER_NAME })}</span>
         </span>
         <span className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", isPublic ? "bg-rose-deep" : "bg-ink/20")} aria-hidden>
           <span className={cn("absolute top-0.5 size-5 rounded-full bg-paper shadow transition-all", isPublic ? "left-[22px]" : "left-0.5")} />
@@ -360,11 +363,11 @@ function ScreeningForm({
 
       <div className="flex gap-3">
         <button type="submit" disabled={busy} className="btn-primary">
-          {busy ? "保存中…" : editing ? "保存改动" : "排上这一场"}
+          {busy ? t("action.saving") : editing ? t("screening.saveChanges") : t("screening.schedule")}
         </button>
         {onCancel && (
           <button type="button" onClick={onCancel} className="btn-ghost">
-            取消
+            {t("board.cancel")}
           </button>
         )}
       </div>
@@ -383,6 +386,7 @@ function ScreeningForm({
 /** 排片列表：改/删/可见性快捷切换 */
 export function ScreeningManager({ initial, album }: { initial: Screening[]; album: AlbumPickItem[] }) {
   const toast = useToast();
+  const t = useT();
   const [list, setList] = useState<Screening[]>(initial);
   const [editing, setEditing] = useState<Screening | null>(null);
   const [seq, setSeq] = useState(0);
@@ -396,20 +400,20 @@ export function ScreeningManager({ initial, album }: { initial: Screening[]; alb
     }).catch(() => null);
     if (res && res.ok) {
       setList((prev) => prev.map((x) => (x.id === s.id ? { ...x, visibility: next } : x)));
-      toast(next === "public" ? "这一场对访客公开了" : `这一场收回来，只有${READER_NAME}能看`);
+      toast(next === "public" ? t("screening.visPublicOn") : t("screening.visReaderOff", { reader: READER_NAME }));
     } else {
-      toast("没改上，再试一次？", "error");
+      toast(t("screening.visFail"), "error");
     }
   }
 
   async function remove(s: Screening) {
-    if (!window.confirm(`确定撤掉《${s.title}》这场放映吗？视频和封面会一起删掉`)) return;
+    if (!window.confirm(t("screening.removeConfirm", { title: s.title }))) return;
     const res = await fetch(`/api/screenings/${s.id}`, { method: "DELETE" }).catch(() => null);
     if (res && res.ok) {
       setList((prev) => prev.filter((x) => x.id !== s.id));
-      toast("已撤下这一场");
+      toast(t("screening.removed"));
     } else {
-      toast("没删掉，再试一次？", "error");
+      toast(t("screening.removeFail"), "error");
     }
   }
 
@@ -450,11 +454,11 @@ export function ScreeningManager({ initial, album }: { initial: Screening[]; alb
                   <p className="truncate font-bold">{s.title}</p>
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-round text-xs tracking-wider text-ink-soft">
                     <span>
-                      首映 {s.premiereAt.replaceAll("-", ".")}
+                      {t("screening.premiereAt", { date: s.premiereAt.replaceAll("-", ".") })}
                       {fmtDur(s.video.duration) && ` · ${fmtDur(s.video.duration)}`}
                     </span>
                     <span className={cn("rounded-full px-2 py-0.5 font-bold", premiered ? "bg-matcha/50 text-ink" : "bg-butter/60 text-ink")}>
-                      {premiered ? "已开演" : "未首映"}
+                      {premiered ? t("screening.premiered") : t("screening.unpremiered")}
                     </span>
                     <button
                       type="button"
@@ -464,14 +468,14 @@ export function ScreeningManager({ initial, album }: { initial: Screening[]; alb
                         s.visibility === "public" ? "bg-matcha/50 text-ink" : "bg-ink/8 text-ink-soft"
                       )}
                     >
-                      {s.visibility === "public" ? "访客可见" : `仅${READER_NAME}可见`}
+                      {s.visibility === "public" ? t("screening.publicVis") : t("screening.readerVis", { reader: READER_NAME })}
                     </button>
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setEditing(s)}
-                  aria-label="编辑"
+                  aria-label={t("action.edit")}
                   className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink"
                 >
                   <PencilSimple className="size-4" />
@@ -479,7 +483,7 @@ export function ScreeningManager({ initial, album }: { initial: Screening[]; alb
                 <button
                   type="button"
                   onClick={() => void remove(s)}
-                  aria-label="撤下"
+                  aria-label={t("screening.remove")}
                   className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep"
                 >
                   <TrashSimple className="size-4" />

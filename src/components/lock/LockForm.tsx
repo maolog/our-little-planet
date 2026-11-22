@@ -6,12 +6,14 @@ import { Lock, LockKeyOpen } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
 import { BookFlip } from "./BookFlip";
 import { READER_NAME } from "@/lib/reader";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 日记本锁扣：输入那串只有你们俩懂的密码。
  *  解开的瞬间不急着跳页——锁扣先弹开，然后全屏演一段「翻开本子」，翻页演完再进首页。
  *  这里是给她（读者）用的门：读者会话一年有效，不用「记住设备」；
  *  作者请去 /write 登录，那边才有 30 天记住选项 */
 export function LockForm({ next, demoHint }: { next?: string; demoHint?: string }) {
+  const t = useT();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,13 +50,14 @@ export function LockForm({ next, demoHint }: { next?: string; demoHint?: string 
         return;
       }
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      setError(data.error ?? "密码好像不对哦，再想想？");
+      // 服务端会按 cookie 语言返回已本地化的 error；没有时用当前语言兜底
+      setError(data.error ?? t("lock.error.wrong"));
       setShake(true);
       setTimeout(() => setShake(false), 500);
       inputRef.current?.focus();
       inputRef.current?.select();
     } catch {
-      setError("网络好像打了个盹，再试一次？");
+      setError(t("lock.error.network"));
     } finally {
       setBusy(false);
     }
@@ -83,18 +86,22 @@ export function LockForm({ next, demoHint }: { next?: string; demoHint?: string 
             </motion.span>
           </AnimatePresence>
         </p>
-        <h1 className="mt-4 text-3xl font-bold">{opened ? "锁扣弹开啦" : `这是${READER_NAME}的专属`}</h1>
-        <p className="mt-3 text-ink-soft">{opened ? "封面正在翻开……" : "这本手账大部分内容只给她看，输密码就能以她的身份进来"}</p>
+        <h1 className="mt-4 text-3xl font-bold">
+          {opened ? t("lock.title.opened") : t("lock.title.closed", { name: READER_NAME })}
+        </h1>
+        <p className="mt-3 text-ink-soft">
+          {opened ? t("lock.sub.opened") : t("lock.sub.closed")}
+        </p>
         <input
           ref={inputRef}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="嗯…是哪个日子来着"
+          placeholder={t("lock.placeholder")}
           autoFocus
           autoComplete="off"
           disabled={opened}
-          aria-label="解锁密码"
+          aria-label={t("lock.aria")}
           className={cn(
             "mt-7 w-full rounded-2xl border-2 bg-paper px-4 py-3 text-center text-lg tracking-[0.3em] placeholder:tracking-normal placeholder:text-ink-soft/50",
             error ? "border-rose-deep/60" : "border-ink/15 focus:border-rose"
@@ -106,7 +113,7 @@ export function LockForm({ next, demoHint }: { next?: string; demoHint?: string 
         )}
         <button type="submit" disabled={busy || opened || password.length === 0} className="btn-primary mt-6 w-full justify-center">
           <LockKeyOpen weight="bold" className="size-5" />
-          {opened ? "翻开啦" : busy ? "正在开锁…" : "解开锁扣"}
+          {opened ? t("lock.cta.opened") : busy ? t("lock.cta.busy") : t("lock.cta.closed")}
         </button>
         {/* 不是她也没关系：访客模式随处可以进，看公开的那些就好 */}
         <button
@@ -115,9 +122,9 @@ export function LockForm({ next, demoHint }: { next?: string; demoHint?: string 
           disabled={opened}
           className="mt-3 w-full rounded-full border border-ink/15 px-4 py-2.5 text-sm font-bold text-ink-soft transition hover:bg-ink/5 hover:text-ink disabled:opacity-50"
         >
-          先随便逛逛（访客模式）
+          {t("lock.guest")}
         </button>
-        <p className="mt-6 font-script text-xl text-ink-soft/60">psst. 忘了的话，只有他知道</p>
+        <p className="mt-6 font-script text-xl text-ink-soft/60">{t("lock.psst")}</p>
       </motion.form>
       {book && <BookFlip phase="opening" onDone={goHome} />}
     </div>

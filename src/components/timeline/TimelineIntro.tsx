@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Sparkle } from "@phosphor-icons/react";
+import { useT } from "@/i18n/LocaleProvider";
 
 const PLAYED_KEY = "journal-intro-played";
 const DURATION_MS = 2600;
@@ -15,6 +16,7 @@ const serverSnapshot = () => false;
  *  播不播由 sessionStorage 决定——它只在浏览器里有，所以走
  *  useSyncExternalStore 的客户端快照，服务端永远渲染「不播」，不会闪也不会 hydration 错位 */
 export function TimelineIntro({ season, eps }: { season: number | null; eps: number }) {
+  const t = useT();
   const reduced = useReducedMotion();
   const shouldPlay = useSyncExternalStore(
     emptySubscribe,
@@ -68,7 +70,7 @@ export function TimelineIntro({ season, eps }: { season: number | null; eps: num
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.4 }}
           >
-            恋爱观察类真人秀
+            {t("intro.genre")}
           </motion.p>
 
           <motion.h2
@@ -78,7 +80,7 @@ export function TimelineIntro({ season, eps }: { season: number | null; eps: num
             transition={{ delay: 0.35, type: "spring", stiffness: 160, damping: 16 }}
           >
             <Sparkle weight="fill" className="size-6 shrink-0 animate-pulse text-butter sm:size-8" />
-            我们的恋爱综艺
+            {t("intro.title")}
             <Sparkle weight="fill" className="size-6 shrink-0 animate-pulse text-butter sm:size-8" />
           </motion.h2>
 
@@ -88,7 +90,7 @@ export function TimelineIntro({ season, eps }: { season: number | null; eps: num
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.75, duration: 0.45 }}
           >
-            {season ? `第 ${season} 季 · 持续续订中` : "特别篇 · 持续续订中"}
+            {season ? t("intro.season", { n: season }) : t("intro.special")}
           </motion.p>
 
           <motion.p
@@ -97,7 +99,7 @@ export function TimelineIntro({ season, eps }: { season: number | null; eps: num
             animate={{ opacity: 1 }}
             transition={{ delay: 1.15, duration: 0.45 }}
           >
-            已播出 {eps} 集 · 含糖量超标，请自备胰岛素
+            {t("intro.aired", { n: eps })}
           </motion.p>
 
           <motion.p
@@ -106,7 +108,7 @@ export function TimelineIntro({ season, eps }: { season: number | null; eps: num
             animate={{ opacity: 1 }}
             transition={{ delay: 1.5, duration: 0.4 }}
           >
-            点击任意处跳过
+            {t("intro.skip")}
           </motion.p>
         </motion.div>
       )}

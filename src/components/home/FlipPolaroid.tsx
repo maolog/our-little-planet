@@ -6,6 +6,7 @@ import { ArrowsClockwise, MagnifyingGlassPlus } from "@phosphor-icons/react";
 import { PolaroidCard } from "@/components/journal/PolaroidCard";
 import { cn } from "@/lib/cn";
 import type { TapeTone } from "@/lib/tilt";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 首页大拍立得：点一下 3D 翻到背面——手写的一句话 + 日期章，像真的把照片翻过来；
  *  再点翻回正面。背面带「放大看」按钮（进灯箱）。翻着背面时通知外层暂停自动轮换 */
@@ -35,18 +36,19 @@ export function FlipPolaroid({
 }) {
   const [flipped, setFlipped] = useState(false);
   const reduce = useReducedMotion();
+  const t = useT();
 
   useEffect(() => {
     onFlipChange?.(flipped);
   }, [flipped, onFlipChange]);
 
-  const back = caption?.trim() || note?.trim() || "这一天，被好好收进了本子里。";
+  const back = caption?.trim() || note?.trim() || t("home.flip.back");
 
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={flipped ? "翻回正面" : "翻到背面看看"}
+      aria-label={flipped ? t("home.flip.toFront") : t("home.flip.toBack")}
       className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-rose/60 focus-visible:ring-offset-4 [perspective:1400px]"
       onClick={() => setFlipped((f) => !f)}
       onKeyDown={(e) => {
@@ -68,7 +70,7 @@ export function FlipPolaroid({
         <div className="[backface-visibility:hidden]">
           <PolaroidCard
             src={src}
-            caption={caption ?? "我们的拍立得"}
+            caption={caption ?? t("home.flip.caption")}
             alt={alt}
             tilt={0}
             tone={tone}
@@ -92,11 +94,11 @@ export function FlipPolaroid({
           <span className="datestamp">{date.replaceAll("-", ".")}</span>
           <span className="absolute bottom-2.5 left-0 right-0 flex items-center justify-center gap-1 font-round text-[10px] font-bold tracking-widest text-ink-soft/50">
             <ArrowsClockwise weight="bold" className="size-3" />
-            点一下翻回去
+            {t("home.flip.hint")}
           </span>
           <button
             type="button"
-            aria-label="放大看这张照片"
+            aria-label={t("home.flip.zoom")}
             onClick={(e) => {
               e.stopPropagation();
               onZoom();

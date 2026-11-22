@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { isAuthor } from "@/lib/auth";
-import { MAX_UPLOAD_BYTES, extFor, saveLocalDirect } from "@/lib/media";
+import { MAX_UPLOAD_BYTES, isAcceptedFile, normalizeMime, saveLocalDirect } from "@/lib/media";
 import { storageMode } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** 上传第二步（仅本地模式）：浏览器 PUT 文件体到服务器落盘。
+ *  请求流一边收一边写（带背压），大视频不再整包读进内存。
  *  OSS 模式不走这里（直传 OSS），配置了 OSS 时此端点直接拒绝 */
 export async function PUT(req: Request) {
   if (storageMode() === "oss") {
@@ -22,11 +23,28 @@ export async function PUT(req: Request) {
   if (!/^[a-f0-9]{8,16}$/.test(mediaId)) {
     return NextResponse.json({ error: "mediaId 不合法" }, { status: 400 });
   }
-  const buf = Buffer.from(await req.arrayBuffer());
-  if (buf.byteLength <= 0 || buf.byteLength > MAX_UPLOAD_BYTES) {
+  // 与 /api/upload/prepare 同一套校验：不接受的类型直接拒（不落盘）
+  const normalized = normalizeMime(mime, name);
+  if (!isAcceptedFile(normalized, name)) {
+    return NextResponse.json({ error: `「${name || "文件"}」不是支持的照片或视频格式` }, { status: 415 });
+  }
+  const contentLength = Number(req.headers.get("content-length"));
+  if (contentLength > MAX_UPLOAD_BYTES) {
     return NextResponse.json({ error: "文件太大" }, { status: 413 });
   }
-  extFor(mime, name); // 校验扩展名可解析
-  const filename = await saveLocalDirect(mediaId, mime, name, buf);
-  return NextResponse.json({ ok: true, key: `media/${filename}` });
+  if (!req.body) {
+    return NextResponse.json({ error: "请求体是空的" }, { status: 400 });
+  }
+  try {
+    const { filename } = await saveLocalDirect(mediaId, normalized, name, req.body);
+    return NextResponse.json({ ok: true, key: `media/${filename}` });
+  } catch (e) {
+    if (e instanceof Error && e.message === "UPLOAD_TOO_LARGE") {
+      return NextResponse.json({ error: "文件太大" }, { status: 413 });
+    }
+    if (e instanceof Error && e.message === "UPLOAD_EMPTY") {
+      return NextResponse.json({ error: "请求体是空的" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "保存上传文件失败" }, { status: 500 });
+  }
 }

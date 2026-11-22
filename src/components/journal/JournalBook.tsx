@@ -6,6 +6,7 @@ import { CalendarBlank, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
 import type { EntryWithMedia } from "@/lib/entries";
 import { JournalEntryCard } from "./JournalEntryCard";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 翻书动画：从右侧翻进来（下一页/更早）或从左侧翻回来（上一页/更新） */
 const FLIP = {
@@ -14,15 +15,16 @@ const FLIP = {
   exit: (d: number) => ({ x: d >= 0 ? -90 : 90, rotateY: d >= 0 ? 10 : -10, opacity: 0 }),
 };
 
-function monthLabel(m: string): string {
+function monthParts(m: string): { y: string; mo: number } {
   const [y, mo] = m.split("-");
-  return `${y} 年 ${Number(mo)} 月`;
+  return { y, mo: Number(mo) };
 }
 
 /** 手账本：像翻纸质书一样一页一页看（手账页 + 自由拼贴页），
  *  月份贴纸跳转 + 日历直选某天；←→ 键、按钮、左右滑动都能翻；
  *  带 ?date= 进来时先翻到那一天（首页「回到那几天」用） */
 export function JournalBook({ entries, author, reader = false, initialDate, seens }: { entries: EntryWithMedia[]; author: boolean; reader?: boolean; initialDate?: string; seens?: Record<string, string> }) {
+  const t = useT();
   const reduce = useReducedMotion();
   const [idx, setIdx] = useState(0); // 0 = 最新一页，往后翻是更早的
   const [dir, setDir] = useState(0);
@@ -102,7 +104,7 @@ export function JournalBook({ entries, author, reader = false, initialDate, seen
                 : "border border-ink/20 text-ink-soft hover:bg-ink/5"
             )}
           >
-            {monthLabel(m)}
+            {t("journal.monthLabel", monthParts(m))}
           </button>
         ))}
         <label className="ml-auto flex items-center gap-2 rounded-full border border-ink/15 bg-paper px-3.5 py-1.5">
@@ -116,7 +118,7 @@ export function JournalBook({ entries, author, reader = false, initialDate, seen
               setJumpDate(e.target.value);
               jumpToDate(e.target.value);
             }}
-            aria-label="跳到某一天"
+            aria-label={t("journal.pagePicker")}
             className="bg-transparent font-round text-sm tracking-wider outline-none"
           />
         </label>
@@ -154,7 +156,7 @@ export function JournalBook({ entries, author, reader = false, initialDate, seen
         {/* 翻页按钮 */}
         <button
           type="button"
-          aria-label="上一页（更新的）"
+          aria-label={t("journal.prevPage")}
           disabled={safeIdx === 0}
           onClick={() => go(-1)}
           className="absolute -left-2 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-ink/10 bg-paper text-ink-soft shadow-card transition hover:text-ink disabled:opacity-30 sm:-left-8"
@@ -163,7 +165,7 @@ export function JournalBook({ entries, author, reader = false, initialDate, seen
         </button>
         <button
           type="button"
-          aria-label="下一页（更早的）"
+          aria-label={t("journal.nextPage")}
           disabled={safeIdx === entries.length - 1}
           onClick={() => go(1)}
           className="absolute -right-2 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-ink/10 bg-paper text-ink-soft shadow-card transition hover:text-ink disabled:opacity-30 sm:-right-8"
@@ -174,13 +176,11 @@ export function JournalBook({ entries, author, reader = false, initialDate, seen
 
       {/* 页码与提示 */}
       <p className="mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-round text-sm tracking-widest text-ink-soft">
-        <span>
-          {safeIdx + 1} / {entries.length} 页
-        </span>
+        <span>{t("journal.pageCount", { n: safeIdx + 1, total: entries.length })}</span>
         <span className="opacity-60">·</span>
         <span className="opacity-70">{entry.entry_date.replaceAll("-", ".")}</span>
         <span className="opacity-60">·</span>
-        <span className="opacity-50">← → 键或左右滑动翻页</span>
+        <span className="opacity-50">{t("journal.swipeHint")}</span>
       </p>
     </div>
   );

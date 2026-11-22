@@ -8,14 +8,20 @@ import { Sticker } from "@/components/journal/Sticker";
 import { GuestLock } from "@/components/GuestLock";
 import { AddEntryButton } from "@/components/AddEntryButton";
 import { recordGuestVisitFor } from "@/lib/visitors";
+import { getLocale, tWith } from "@/i18n/server";
+import type { Dict } from "@/i18n";
 
-export const metadata: Metadata = { title: "放映室" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: tWith(await getLocale(), "meta.screenings") };
+}
 
 /** 放映室：每一段完整的纪念视频，是一场只放给她看的首映 */
 export default async function ScreeningsPage() {
   await recordGuestVisitFor("/screenings");
+  const locale = await getLocale();
+  const t = (key: keyof Dict, params?: Record<string, string | number>) => tWith(locale, key, params);
   const [reader, author, settings] = [await isReader(), await isAuthor(), getSettings()];
-  if (!reader && !sectionOpen(settings, "screenings")) return <GuestLock section="放映室" />;
+  if (!reader && !sectionOpen(settings, "screenings")) return <GuestLock section={t("meta.screenings")} />;
 
   const screenings = listScreenings({ includeUnpublished: author, guest: !reader });
 
@@ -23,12 +29,12 @@ export default async function ScreeningsPage() {
     <div className="py-10">
       <header className="mb-4 text-center">
         <p className="font-script text-2xl text-rose-deep">now showing</p>
-        <h1 className="mt-2 text-4xl font-bold">放映室</h1>
-        <p className="mt-3 text-ink-soft">一场一场的首映，都是只放给你一个人的电影</p>
+        <h1 className="mt-2 text-4xl font-bold">{t("meta.screenings")}</h1>
+        <p className="mt-3 text-ink-soft">{t("screening.subtitle")}</p>
         <DoodleDivider variant="wave" className="mx-auto mt-6" />
         {author && (
           <div className="mt-6">
-            <AddEntryButton href="/write/screenings" icon="letter" label="排一场新的首映" />
+            <AddEntryButton href="/write/screenings" icon="letter" label={t("screening.newTitle")} />
           </div>
         )}
       </header>
@@ -37,7 +43,7 @@ export default async function ScreeningsPage() {
         <div className="card-paper mx-auto mt-16 flex max-w-md flex-col items-center gap-4 py-14 text-center">
           <Sticker name="star" className="size-12 text-butter" />
           <p className="text-ink-soft">
-            {reader ? "银幕还空着。第一场电影，在等一个特别的日子" : "能给你看的场次还在排片"}
+            {reader ? t("screening.emptyReader") : t("screening.emptyGuest")}
           </p>
         </div>
       ) : (

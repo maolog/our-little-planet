@@ -1,4 +1,7 @@
 import { cn } from "@/lib/cn";
+import type { Dict } from "@/i18n/dict";
+
+type DictKey = keyof Dict;
 
 /** 贴纸库：一套统一的扁平小插画（爱心/星星/小花/云朵/咖啡/音符/飞机/相机/礼物/蛋糕/冰淇淋/小猫/星光/太阳/月亮/彩带）。
  *  风格锁定：纯 currentColor 填充，颜色由外层 className 决定。
@@ -101,24 +104,24 @@ const SHAPES = {
 export type StickerName = keyof typeof SHAPES;
 export const STICKER_NAMES = Object.keys(SHAPES) as StickerName[];
 
-/** 选择器上的中文名（无障碍标签 / 悬浮提示用） */
-export const STICKER_LABELS: Record<StickerName, string> = {
-  heart: "爱心",
-  star: "星星",
-  flower: "小花",
-  cloud: "云朵",
-  coffee: "咖啡",
-  music: "音符",
-  plane: "飞机",
-  camera: "相机",
-  gift: "礼物",
-  cake: "蛋糕",
-  icecream: "冰淇淋",
-  cat: "小猫",
-  sparkle: "星光",
-  sun: "太阳",
-  moon: "月亮",
-  confetti: "彩带",
+/** 选择器上的显示名（无障碍标签 / 悬浮提示用；字典 key，渲染时过 t()） */
+export const STICKER_LABELS: Record<StickerName, DictKey> = {
+  heart: "sticker.heart",
+  star: "sticker.star",
+  flower: "sticker.flower",
+  cloud: "sticker.cloud",
+  coffee: "sticker.coffee",
+  music: "sticker.music",
+  plane: "sticker.plane",
+  camera: "sticker.camera",
+  gift: "sticker.gift",
+  cake: "sticker.cake",
+  icecream: "sticker.icecream",
+  cat: "sticker.cat",
+  sparkle: "sticker.sparkle",
+  sun: "sticker.sun",
+  moon: "sticker.moon",
+  confetti: "sticker.confetti",
 };
 
 export function isStickerName(v: string): v is StickerName {

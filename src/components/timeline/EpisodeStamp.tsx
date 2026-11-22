@@ -1,5 +1,8 @@
+"use client";
+
 import { pickOf } from "@/lib/tilt";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 糖分评级：内容越足等级越高，永远不低于 S——差集是不存在的。
  *  约 1/6 的集数按 id 稳定地显示「爆表」，比字母更有综艺味 */
@@ -26,10 +29,12 @@ export function EpisodeChip({ ep, className }: { ep: number; className?: string 
 
 /** 糖分章：盖在便利贴右上角的红墨小圆章（位置和样式在 globals.css 的 .grade-stamp） */
 export function GradeStamp({ grade }: { grade: string }) {
+  const t = useT();
+  const shown = grade === "爆表" ? t("grade.max") : grade;
   return (
-    <span className="grade-stamp" aria-label={`本集糖分 ${grade}`}>
-      <span className="font-round text-[8px] font-semibold leading-none tracking-[0.18em]">本集糖分</span>
-      <span className={cn("mt-0.5 font-script leading-none", grade.length > 1 ? "text-base" : "text-xl")}>{grade}</span>
+    <span className="grade-stamp" aria-label={t("grade.aria", { grade: shown })}>
+      <span className="font-round text-[8px] font-semibold leading-none tracking-[0.18em]">{t("grade.label")}</span>
+      <span className={cn("mt-0.5 font-script leading-none", shown.length > 1 ? "text-base" : "text-xl")}>{shown}</span>
     </span>
   );
 }

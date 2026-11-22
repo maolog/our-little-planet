@@ -10,13 +10,19 @@ import { Sticker } from "@/components/journal/Sticker";
 import { AddEntryButton } from "@/components/AddEntryButton";
 import { GuestLock } from "@/components/GuestLock";
 import { recordGuestVisitFor } from "@/lib/visitors";
+import { getLocale, tWith } from "@/i18n/server";
+import type { Dict } from "@/i18n";
 
-export const metadata: Metadata = { title: "拍立得墙" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: tWith(await getLocale(), "album.title") };
+}
 
 export default async function AlbumPage() {
   await recordGuestVisitFor("/album");
+  const locale = await getLocale();
+  const t = (key: keyof Dict, params?: Record<string, string | number>) => tWith(locale, key, params);
   const [reader, author, settings] = [await isReader(), await isAuthor(), getSettings()];
-  if (!reader && !sectionOpen(settings, "album")) return <GuestLock section="相册" />;
+  if (!reader && !sectionOpen(settings, "album")) return <GuestLock section={t("nav.tab.album")} />;
   // 访客只看得到公开页上的照片
   const photos = await Promise.resolve(listAlbum({ guest: !reader }));
   const knownTags = author ? listAllTags() : [];
@@ -24,12 +30,12 @@ export default async function AlbumPage() {
   return (
     <div className="py-10">
       <header className="mb-10 text-center">
-        <h1 className="text-4xl font-bold">拍立得墙</h1>
-        <p className="mt-3 text-ink-soft">共 {photos.length} 个瞬间，随便翻，别客气</p>
+        <h1 className="text-4xl font-bold">{t("album.title")}</h1>
+        <p className="mt-3 text-ink-soft">{t("album.subtitle", { n: photos.length })}</p>
         <DoodleDivider variant="wave" className="mx-auto mt-6" />
         {author && (
           <div className="mt-6">
-            <AddEntryButton href="/write?type=photo" icon="camera" label="传照片 / 视频" />
+            <AddEntryButton href="/write?type=photo" icon="camera" label={t("album.add")} />
           </div>
         )}
       </header>
@@ -37,10 +43,10 @@ export default async function AlbumPage() {
       {photos.length === 0 ? (
         <div className="card-paper mx-auto mt-16 flex max-w-md flex-col items-center gap-4 py-14 text-center">
           <Sticker name="star" className="size-12 text-butter" />
-          <p className="text-ink-soft">{reader ? "墙上还空空的，第一张拍立得在等你" : "能给你看的照片还在准备中"}</p>
+          <p className="text-ink-soft">{reader ? t("album.emptyReader") : t("album.emptyGuest")}</p>
           {author && (
             <Link href="/write?type=photo" className="btn-primary">
-              贴第一张
+              {t("album.addFirst")}
             </Link>
           )}
         </div>

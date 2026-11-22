@@ -1,4 +1,5 @@
 import { db, type EntryRow, type MediaRow } from "./db";
+import { syncEntryRefs } from "./entryRefs";
 import { newId, nowISO, todayLocal } from "./ids";
 import { deleteMediaFile, getMediaById, publicMedia } from "./media";
 import { parseBoardLayout, sanitizeBoardLayout, type BoardLayout } from "./board";
@@ -71,27 +72,10 @@ export type AlbumPhoto = Omit<PublicMedia, "kind"> & {
 
 const VALID_TYPES: EntryType[] = ["journal", "photo", "quote", "letter", "board"];
 
-function toEntryWithMedia(r: EntryRow): EntryWithMedia {
-  return { ...r, layout: parseBoardLayout(r.layout), tags: parseTags(r.tags), media: mediaOf(r) };
-}
+type RefItem = { id: string; caption?: unknown; sort?: unknown };
 
-/** 条目自己拥有的媒体 + 从相册引用来的媒体，按 sort 混排成一条时间线 */
-function mediaOf(r: EntryRow): PublicMedia[] {
-  // 被引用为 Live Photo 配对的视频不单独展示（它作为照片的一部分存在）
-  const rows = db
-    .prepare(
-      `SELECT m.* FROM media m WHERE m.entry_id = ?
-       AND NOT EXISTS (SELECT 1 FROM media p WHERE p.entry_id = ? AND p.live_video_id = m.id)
-       ORDER BY m.sort, m.created_at`
-    )
-    .all(r.id, r.id) as MediaRow[];
-  const owned = rows.map((row) => publicMedia(row));
-  const refs = refMediaOf(r).filter((m) => !owned.some((o) => o.id === m.id));
-  return [...owned, ...refs].sort((a, b) => a.sort - b.sort);
-}
-
-/** 解析 entries.ref_media：引用的相册照片/视频（原主人的文件不动，删除条目也不删它们） */
-function refMediaOf(r: EntryRow): PublicMedia[] {
+/** 解析 entries.ref_media 的原始引用项（不查库，供批量装载用） */
+function parseRefItems(r: EntryRow): RefItem[] {
   let list: { id?: unknown; caption?: unknown; sort?: unknown }[] = [];
   try {
     const parsed = JSON.parse(r.ref_media ?? "[]");
@@ -99,16 +83,69 @@ function refMediaOf(r: EntryRow): PublicMedia[] {
   } catch {
     /* 坏 JSON 当空处理 */
   }
-  const out: PublicMedia[] = [];
-  for (const ref of list) {
-    if (typeof ref.id !== "string") continue;
-    const row = getMediaById(ref.id);
-    if (!row || (row.kind !== "photo" && row.kind !== "video") || row.entry_id === r.id) continue;
-    const sort = typeof ref.sort === "number" && Number.isFinite(ref.sort) ? Math.min(9999, Math.trunc(ref.sort)) : 0;
-    const caption = typeof ref.caption === "string" && ref.caption.trim() ? ref.caption.slice(0, 300) : null;
-    out.push({ ...publicMedia(row), caption: caption ?? row.caption ?? null, sort, ref: true });
+  return list.filter((ref): ref is RefItem => typeof ref.id === "string");
+}
+
+/** 一条引用项 → 展示媒体（口径与旧 refMediaOf 一致：只认照片/视频、不引用自己名下的） */
+function refItemView(ref: RefItem, row: MediaRow | undefined, owner: EntryRow): PublicMedia | null {
+  if (!row || (row.kind !== "photo" && row.kind !== "video") || row.entry_id === owner.id) return null;
+  const sort = typeof ref.sort === "number" && Number.isFinite(ref.sort) ? Math.min(9999, Math.trunc(ref.sort)) : 0;
+  const caption = typeof ref.caption === "string" && ref.caption.trim() ? ref.caption.slice(0, 300) : null;
+  return { ...publicMedia(row), caption: caption ?? row.caption ?? null, sort, ref: true };
+}
+
+/** 批量装载：一批条目连同各自媒体一次查齐（自有媒体 1 条 SQL + 引用媒体 1 条 SQL），
+ *  替代原来「每页查一次自有媒体、每张引用再查一次」的 N+1 */
+function hydrateEntries(rows: EntryRow[]): EntryWithMedia[] {
+  if (rows.length === 0) return [];
+
+  // 1) 自有媒体：IN 一把查回，按 entry_id 分组
+  const ids = rows.map((r) => r.id);
+  const ph = ids.map(() => "?").join(",");
+  const ownedByEntry = new Map<string, MediaRow[]>();
+  const ownedRows = db
+    .prepare(
+      `SELECT m.* FROM media m WHERE m.entry_id IN (${ph})
+       AND NOT EXISTS (SELECT 1 FROM media p WHERE p.entry_id = m.entry_id AND p.live_video_id = m.id)
+       ORDER BY m.sort, m.created_at`
+    )
+    .all(...ids) as MediaRow[];
+  for (const row of ownedRows) {
+    const list = ownedByEntry.get(row.entry_id ?? "") ?? [];
+    list.push(row);
+    ownedByEntry.set(row.entry_id ?? "", list);
   }
-  return out;
+
+  // 2) 引用媒体：解析所有条目的 ref_media，攒齐 id 一次查回
+  const refItemsByEntry = new Map<string, RefItem[]>();
+  const refIdSet = new Set<string>();
+  for (const r of rows) {
+    const items = parseRefItems(r);
+    refItemsByEntry.set(r.id, items);
+    for (const it of items) refIdSet.add(it.id);
+  }
+  const refById = new Map<string, MediaRow>();
+  if (refIdSet.size > 0) {
+    const refIds = [...refIdSet];
+    const ph2 = refIds.map(() => "?").join(",");
+    const refRows = db.prepare(`SELECT * FROM media WHERE id IN (${ph2})`).all(...refIds) as MediaRow[];
+    for (const row of refRows) refById.set(row.id, row);
+  }
+
+  return rows.map((r) => {
+    const owned = (ownedByEntry.get(r.id) ?? []).map((row) => publicMedia(row));
+    const ownedIds = new Set(owned.map((m) => m.id));
+    const seen = new Set<string>();
+    const refs: PublicMedia[] = [];
+    for (const ref of refItemsByEntry.get(r.id) ?? []) {
+      if (seen.has(ref.id)) continue;
+      seen.add(ref.id);
+      const view = refItemView(ref, refById.get(ref.id), r);
+      if (view) refs.push(view);
+    }
+    const media = [...owned, ...refs.filter((m) => !ownedIds.has(m.id))].sort((a, b) => a.sort - b.sort);
+    return { ...r, layout: parseBoardLayout(r.layout), tags: parseTags(r.tags), media };
+  });
 }
 
 /** 清洗要写进 ref_media 的引用列表（媒体必须真实存在且是照片/视频） */
@@ -152,7 +189,7 @@ export function listEntries(
                ORDER BY entry_date DESC, created_at DESC ${opts.limit ? "LIMIT @limit" : ""}`;
   if (opts.limit) params.limit = opts.limit;
   const rows = db.prepare(sql).all(params) as EntryRow[];
-  return rows.map(toEntryWithMedia);
+  return hydrateEntries(rows);
 }
 
 /** 读者能看到的语录条数（结算单用），过滤口径和语录馆一致 */
@@ -167,7 +204,7 @@ export function countQuotes(guest = false): number {
 
 export function getEntry(id: string): EntryWithMedia | undefined {
   const row = db.prepare("SELECT * FROM entries WHERE id = ?").get(id) as EntryRow | undefined;
-  return row ? toEntryWithMedia(row) : undefined;
+  return row ? hydrateEntries([row])[0] : undefined;
 }
 
 /** 把媒体挂到条目上：孤儿（还没挂过）直接挂；已经挂在本条目上的，更新描述和排序。
@@ -208,6 +245,7 @@ export function createEntry(input: EntryInput): EntryWithMedia {
     now,
     now
   );
+  syncEntryRefs(db, id, refMedia === "[]" ? null : refMedia, layout);
   attachMedia(id, input.media);
   // 表单里打的标签落到这一页的每张媒体上（相册墙按张筛选），也进全局标签库
   if (tags.length > 0) {
@@ -245,6 +283,7 @@ export function updateEntry(id: string, input: EntryInput): EntryWithMedia {
     nowISO(),
     id
   );
+  syncEntryRefs(db, id, refMedia === "[]" ? null : refMedia, layout);
   attachMedia(id, input.media);
   // 表单里打的标签同步到这一页的每张媒体上（「本子里的一切」可以按张再改），也进全局标签库
   if (tags.length > 0) {
@@ -330,8 +369,18 @@ export function listPhotos(opts: { guest?: boolean } = {}): AlbumPhoto[] {
 }
 
 export function countPhotos(opts: { guest?: boolean } = {}): number {
-  // 和墙同一口径：只数挂了条目的照片（孤儿不上墙）
-  return listAlbum({ guest: opts.guest }).filter((m) => m.kind === "photo").length;
+  // 和墙同一口径：只数挂了条目的照片（孤儿不上墙）。
+  // 直接 COUNT，不再把整墙照片拉回内存数一遍
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM media m JOIN entries e ON m.entry_id = e.id
+       WHERE m.kind = 'photo'
+         AND NOT EXISTS (SELECT 1 FROM media p WHERE p.live_video_id = m.id)
+         AND e.published = 1 AND (e.reveal_at IS NULL OR e.reveal_at <= ?)
+         ${opts.guest ? "AND e.visibility = 'public'" : ""}`
+    )
+    .get(todayLocal()) as { n: number };
+  return row.n;
 }
 
 /** 只改一页的公开/仅她（后台列表上的快捷开关用） */

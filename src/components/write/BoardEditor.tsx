@@ -31,6 +31,7 @@ import {
 } from "@/lib/board";
 import { shrinkImage, uploadFile } from "@/lib/client-upload";
 import type { EntryDTO } from "./EntryForm";
+import { useT } from "@/i18n/LocaleProvider";
 
 export type BoardEntryInitial = {
   id: string;
@@ -65,6 +66,7 @@ export function BoardEditor({
   onCancel?: () => void;
 }) {
   const toast = useToast();
+  const t = useT();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [date, setDate] = useState(initial?.entryDate ?? todayStr());
   const [elements, setElements] = useState<BoardElement[]>(initial?.layout?.elements ?? []);
@@ -236,7 +238,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
         }
         placed++;
       } catch (e) {
-        toast(e instanceof Error ? e.message : "图片没传上去", "error");
+        toast(e instanceof Error ? e.message : t("board.uploadFail"), "error");
       } finally {
         setUploading((n) => n - 1);
       }
@@ -262,15 +264,15 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
 
   /** 长按从贴纸库删除 */
   async function deleteLibrarySticker(id: string) {
-    if (!window.confirm("从贴纸库里删掉这张贴纸？")) return;
+    if (!window.confirm(t("board.delConfirm"))) return;
     try {
       const res = await fetch(`/api/stickers/${id}`, { method: "DELETE" });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "没删掉");
+      if (!res.ok) throw new Error(data.error ?? t("board.delFail"));
       setLibrary((prev) => prev.filter((s) => s.id !== id));
-      toast("贴纸已删掉");
+      toast(t("board.stickerDeleted"));
     } catch (e) {
-      toast(e instanceof Error ? e.message : "没删掉", "error");
+      toast(e instanceof Error ? e.message : t("board.delFail"), "error");
     }
   }
 
@@ -368,11 +370,11 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "保存失败了");
-      toast(initial ? "改好了，已保存" : "这一页拼好了");
+      if (!res.ok) throw new Error(data.error ?? t("state.saveError"));
+      toast(initial ? t("board.savedEdit") : t("board.savedNew"));
       onSaved(data.entry, !initial);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "保存失败了", "error");
+      toast(e instanceof Error ? e.message : t("state.saveError"), "error");
       setSaving(false);
     }
   }
@@ -460,14 +462,14 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
             value={date}
             onChange={(e) => setDate(e.target.value)}
             disabled={busy}
-            aria-label="日期"
+            aria-label={t("ms.date")}
             className="bg-transparent font-round text-sm tracking-wider outline-none"
           />
         </label>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="给这一页起个标题（可不填）"
+          placeholder={t("board.titlePh")}
           disabled={busy}
           className="min-w-40 flex-1 rounded-full border border-ink/15 bg-paper px-4 py-2 text-sm outline-none placeholder:text-ink-soft/50 focus:border-rose"
         />
@@ -479,7 +481,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
           <button
             type="button"
             onClick={() => setMode("select")}
-            aria-label="选择/移动模式"
+            aria-label={t("board.modeSelect")}
             className={cn(
               "grid size-8 place-items-center rounded-full transition",
               mode === "select" ? "bg-rose-soft text-rose-deep" : "text-ink-soft hover:bg-ink/5"
@@ -494,7 +496,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
               setSelected(null);
               commitTextDraft();
             }}
-            aria-label="画笔模式"
+            aria-label={t("board.modeDraw")}
             className={cn(
               "grid size-8 place-items-center rounded-full transition",
               mode === "draw" ? "bg-rose-soft text-rose-deep" : "text-ink-soft hover:bg-ink/5"
@@ -510,7 +512,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
               <button
                 key={c.color}
                 type="button"
-                aria-label={`画笔 ${c.label}`}
+                aria-label={t("board.penColor", { name: c.label })}
                 onClick={() => setColorIdx(i)}
                 className={cn(
                   "size-6 rounded-full border-2 transition",
@@ -524,7 +526,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
               <button
                 key={i}
                 type="button"
-                aria-label={`粗细 ${i + 1}`}
+                aria-label={t("board.penWidth", { n: i + 1 })}
                 onClick={() => setPenIdx(i)}
                 className={cn("grid size-7 place-items-center rounded-full transition", penIdx === i ? "bg-ink/10" : "opacity-60")}
               >
@@ -536,7 +538,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
           <>
             <button type="button" onClick={addText} disabled={busy} className="btn-ghost gap-1.5 rounded-full px-3.5 py-2 text-sm">
               <TextAa weight="bold" className="size-4" />
-              文字
+              {t("board.text")}
             </button>
             <button
               type="button"
@@ -545,17 +547,17 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
               className="btn-ghost gap-1.5 rounded-full px-3.5 py-2 text-sm"
             >
               <ImageSquare weight="bold" className="size-4" />
-              图片
+              {t("board.image")}
             </button>
             <button
               type="button"
               onClick={() => imageFolderInput.current?.click()}
               disabled={busy}
-              title="选整个文件夹，批量贴图"
+              title={t("board.folderTitle")}
               className="btn-ghost gap-1.5 rounded-full px-3.5 py-2 text-sm"
             >
               <FolderOpen weight="bold" className="size-4" />
-              文件夹
+              {t("ms.folder")}
             </button>
             <div className="relative">
               <button
@@ -565,17 +567,17 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
                 className={cn("btn-ghost gap-1.5 rounded-full px-3.5 py-2 text-sm", stickerOpen && "bg-rose-soft text-rose-deep")}
               >
                 <StickerIcon weight="bold" className="size-4" />
-                贴纸
+                {t("board.sticker")}
               </button>
               {stickerOpen && (
                 <div className="absolute left-0 top-full z-30 mt-2 w-64 rounded-2xl border border-ink/10 bg-paper p-3 shadow-lifted">
-                  <p className="px-1 pb-2 text-xs text-ink-soft">先选颜色，再点贴纸贴出来（贴出来后拖角缩放）</p>
+                  <p className="px-1 pb-2 text-xs text-ink-soft">{t("board.stickerHint")}</p>
                   <div className="mb-2.5 flex items-center gap-2 px-1">
                     {BOARD_COLORS.map((c) => (
                       <button
                         key={c.color}
                         type="button"
-                        aria-label={`贴纸颜色 ${c.label}`}
+                        aria-label={t("board.stickerColor", { name: c.label })}
                         onClick={() => setStickerColor(c.color)}
                         className={cn(
                           "size-6 rounded-full border-2 transition",
@@ -590,7 +592,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
                       <button
                         key={name}
                         type="button"
-                        aria-label={`贴纸 ${name}`}
+                        aria-label={t("board.stickerItem", { name })}
                         onClick={() => addSticker(name, stickerColor)}
                         className="grid place-items-center rounded-xl border border-ink/10 bg-card py-2 transition hover:-translate-y-0.5 hover:border-rose"
                         style={{ color: stickerColor }}
@@ -599,13 +601,13 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
                       </button>
                     ))}
                   </div>
-                  <p className="mt-3 px-1 pb-1.5 text-xs text-ink-soft">我的贴纸（长按删除）</p>
+                  <p className="mt-3 px-1 pb-1.5 text-xs text-ink-soft">{t("board.stickerMine")}</p>
                   <div className="grid grid-cols-3 gap-1.5">
                     {library.map((s) => (
                       <button
                         key={s.id}
                         type="button"
-                        aria-label="贴这张贴纸"
+                        aria-label={t("board.stickerPlace")}
                         onClick={() => placeLibrarySticker(s)}
                         onPointerDown={() => libraryPressDown(s.id)}
                         onPointerUp={libraryPressUp}
@@ -618,7 +620,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
                       </button>
                     ))}
                     {library.length === 0 && (
-                      <p className="col-span-3 pb-1 text-center text-xs text-ink-soft/70">还没有，传一张试试</p>
+                      <p className="col-span-3 pb-1 text-center text-xs text-ink-soft/70">{t("board.stickerEmpty")}</p>
                     )}
                   </div>
                   <button
@@ -627,7 +629,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
                     className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-ink/25 py-2 text-xs font-bold text-ink-soft transition hover:border-rose hover:text-ink"
                   >
                     <UploadSimple weight="bold" className="size-3.5" />
-                    上传可爱图片当贴纸
+                    {t("board.stickerUpload")}
                   </button>
                 </div>
               )}
@@ -639,7 +641,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
                 className="btn-ghost gap-1.5 rounded-full px-3.5 py-2 text-sm"
               >
                 <PencilSimple weight="bold" className="size-4" />
-                改文字
+                {t("board.editText")}
               </button>
             )}
           </>
@@ -649,10 +651,10 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
           type="button"
           onClick={undo}
           className="btn-ghost gap-1.5 rounded-full px-3.5 py-2 text-sm"
-          title="撤销（Ctrl/⌘+Z）"
+          title={t("board.undoTitle")}
         >
           <ArrowsCounterClockwise weight="bold" className="size-4" />
-          撤销
+          {t("board.undo")}
         </button>
         {mode === "select" && selected && (
           <button
@@ -661,10 +663,10 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
             className="btn-ghost gap-1.5 rounded-full px-3.5 py-2 text-sm text-rose-deep hover:bg-rose-soft"
           >
             <TrashSimple weight="bold" className="size-4" />
-            删除
+            {t("action.delete")}
           </button>
         )}
-        {uploading > 0 && <span className="text-xs font-bold text-rose-deep">素材上传中 ×{uploading}</span>}
+        {uploading > 0 && <span className="text-xs font-bold text-rose-deep">{t("board.uploading", { n: uploading })}</span>}
       </div>
 
       {/* 画布。手机上画描最容易误触成长按选中网页文字：禁掉选中和 iOS 长按菜单，
@@ -717,7 +719,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
             {selected === el.id && mode === "select" && (
               <span
                 role="button"
-                aria-label="缩放"
+                aria-label={t("board.resize")}
                 onPointerDown={(e) => startElementDrag(e, el, "resize")}
                 onPointerMove={onDragMove}
                 onPointerUp={endDrag}
@@ -743,9 +745,7 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
         )}
       </div>
 
-      <p className="mt-2 px-1 text-xs leading-relaxed text-ink-soft/80">
-        画笔下可以随手涂鸦；选择模式下拖动元素、拖右下角圆点缩放，双击文字修改。图片可以直接拖进纸页。
-      </p>
+      <p className="mt-2 px-1 text-xs leading-relaxed text-ink-soft/80">{t("board.hint")}</p>
 
       <input
         ref={imageInput}
@@ -786,18 +786,18 @@ async function imageSize(file: File): Promise<{ width?: number; height?: number 
           {saving || uploading > 0 ? (
             <>
               <Check className="size-5 animate-pulse" />
-              {saving ? "正在贴进本子…" : "素材还在传…"}
+              {saving ? t("board.savingPaste") : t("board.uploadingMore")}
             </>
           ) : (
             <>
               <Check weight="bold" className="size-5" />
-              {initial ? "保存修改" : "贴进手账"}
+              {initial ? t("ms.saveEdit") : t("board.saveNew")}
             </>
           )}
         </button>
         {initial && onCancel && (
           <button type="button" onClick={onCancel} disabled={busy} className="btn-ghost">
-            不改了
+            {t("board.cancel")}
           </button>
         )}
       </div>

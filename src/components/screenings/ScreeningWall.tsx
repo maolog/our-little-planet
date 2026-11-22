@@ -9,6 +9,7 @@ import { pickOf, tiltOf, TAPE_TONES } from "@/lib/tilt";
 import { WashiTape } from "@/components/journal/WashiTape";
 import { SeenStamp } from "@/components/marks/SeenStamp";
 import { CommentBox } from "@/components/marks/CommentBox";
+import { useT } from "@/i18n/LocaleProvider";
 
 function fmtDur(sec: number | null): string {
   if (!sec || sec <= 0) return "";
@@ -58,6 +59,7 @@ export function ScreeningWall({
   author: boolean;
   reader: boolean;
 }) {
+  const t = useT();
   const [openId, setOpenId] = useState<string | null>(null);
   const open = screenings.find((s) => s.id === openId) ?? null;
 
@@ -74,7 +76,7 @@ export function ScreeningWall({
     };
   }, [open]);
 
-  const t = today();
+  const todayStr = today();
   // 场次编号按时间正序：最老的一场是「第 1 场」
   const ordered = [...screenings].reverse();
 
@@ -83,13 +85,13 @@ export function ScreeningWall({
       <div className="mx-auto mt-12 grid max-w-4xl grid-cols-2 gap-8 pt-4 sm:grid-cols-3 sm:gap-10">
         {screenings.map((s) => {
           const no = ordered.findIndex((x) => x.id === s.id) + 1;
-          const premiered = s.premiereAt <= t;
+          const premiered = s.premiereAt <= todayStr;
           const days = premiered
             ? 0
             : Math.max(
                 1,
                 Math.round(
-                  (new Date(`${s.premiereAt}T00:00:00`).getTime() - new Date(`${t}T00:00:00`).getTime()) / 86_400_000
+                  (new Date(`${s.premiereAt}T00:00:00`).getTime() - new Date(`${todayStr}T00:00:00`).getTime()) / 86_400_000
                 )
               );
           const playable = premiered || author;
@@ -104,7 +106,7 @@ export function ScreeningWall({
                 playable ? "cursor-pointer hover:[transform:rotate(0deg)_translateY(-8px)]" : "cursor-default"
               )}
               style={{ transform: `rotate(${tiltOf(s.id, 2)}deg)` }}
-              aria-label={`${premiered ? "观看" : author ? "预览" : "未首映"}：${s.title}`}
+              aria-label={t(premiered ? "screening.watchAria" : author ? "screening.previewAria" : "screening.lockedAria", { title: s.title })}
             >
               <div className="relative overflow-hidden rounded-xl bg-paper-deep shadow-card transition-shadow group-hover:shadow-lifted">
                 <div className="relative aspect-[2/3] w-full">
@@ -112,7 +114,7 @@ export function ScreeningWall({
                     /* eslint-disable-next-line @next/next/no-img-element -- 封面走带鉴权的 /api/media */
                     <img
                       src={(s.coverUrl ?? s.video.posterUrl)!}
-                      alt={`${s.title} 的海报`}
+                      alt={t("screening.posterAria", { title: s.title })}
                       loading="lazy"
                       className={cn("h-full w-full object-cover", !premiered && "opacity-60 saturate-50")}
                     />
@@ -131,7 +133,7 @@ export function ScreeningWall({
                   {premiered && (
                     <span className="stamp-blend absolute right-2.5 top-2.5 inline-flex rotate-6 flex-col items-center rounded-full border-2 border-rose-deep/70 px-2 py-1 font-round text-[9px] font-bold leading-tight tracking-widest text-rose-deep/90"
                       style={{ background: "color-mix(in srgb, var(--color-rose-deep) 8%, transparent)" }}>
-                      第 {no} 场
+                      {t("screening.showNo", { n: no })}
                       <span className="text-[8px] opacity-80">{s.premiereAt.replaceAll(".", "-").replaceAll("-", ".")}</span>
                     </span>
                   )}
@@ -139,9 +141,9 @@ export function ScreeningWall({
                   {!premiered && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/55 backdrop-blur-[2px]">
                       <Confetti weight="fill" className="size-7 text-butter" />
-                      <p className="font-round text-sm font-bold tracking-widest text-paper">尚未首映</p>
-                      <p className="font-script text-2xl text-butter">还有 {days} 天</p>
-                      <p className="font-round text-[10px] tracking-wider text-paper/60">{s.premiereAt.replaceAll("-", ".")} 开演</p>
+                      <p className="font-round text-sm font-bold tracking-widest text-paper">{t("screening.soon")}</p>
+                      <p className="font-script text-2xl text-butter">{t("screening.inDays", { n: days })}</p>
+                      <p className="font-round text-[10px] tracking-wider text-paper/60">{t("screening.starts", { date: s.premiereAt.replaceAll("-", ".") })}</p>
                     </div>
                   )}
                   {/* 播放角标 */}
@@ -155,7 +157,7 @@ export function ScreeningWall({
               <WashiTape tone={pickOf(s.id, TAPE_TONES)} rotate={tiltOf(s.id, 2) > 0 ? -6 : 5} className="-top-3 left-1/2 scale-90" />
               <p className="mt-2.5 text-center font-round text-[11px] tracking-wider text-ink-soft">
                 {fmtDur(s.video.duration) && `${fmtDur(s.video.duration)} · `}
-                {premiered ? `首映于 ${s.premiereAt.replaceAll("-", ".")}` : "等一个日子"}
+                {premiered ? t("screening.premieredOn", { date: s.premiereAt.replaceAll("-", ".") }) : t("screening.waiting")}
               </p>
             </button>
           );
@@ -185,7 +187,7 @@ export function ScreeningWall({
             >
               <button
                 type="button"
-                aria-label="散场"
+                aria-label={t("screening.dismiss")}
                 onClick={() => setOpenId(null)}
                 className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full text-ink-soft/70 transition hover:bg-ink/10 hover:text-ink"
               >
@@ -197,7 +199,7 @@ export function ScreeningWall({
                 <h2 className="mt-2 font-script text-4xl leading-tight text-rose-deep">{open.title}</h2>
                 {open.subtitle && <p className="mt-2 text-sm leading-relaxed text-ink-soft">{open.subtitle}</p>}
                 <p className="mt-2 font-round text-xs tracking-widest text-ink-soft/60">
-                  首映 {open.premiereAt.replaceAll("-", ".")}
+                  {t("screening.premiereAt", { date: open.premiereAt.replaceAll("-", ".") })}
                   {fmtDur(open.video.duration) && ` · ${fmtDur(open.video.duration)}`}
                 </p>
               </header>
@@ -209,20 +211,20 @@ export function ScreeningWall({
               </div>
               {open.video.hevc && (
                 <p className="mt-2 text-center font-round text-[11px] tracking-wider text-ink-soft/60">
-                  这段是 HEVC 编码：iPhone / Safari 没问题，电脑 Chrome 可能放不了
+                  {t("screening.hevcNote")}
                 </p>
               )}
 
               {reader && (
                 <div className="mt-6">
                   <div className="mb-4 flex items-center justify-between gap-4 px-1">
-                    <p className="font-script text-2xl text-rose-deep">映后</p>
+                    <p className="font-script text-2xl text-rose-deep">{t("screening.after")}</p>
                     <SeenStamp entryId={open.id} seenAt={null} />
                   </div>
                   <CommentBox
                     entryId={open.id}
-                    heading="写一句观后感"
-                    placeholder="看完这一场，想说点什么…"
+                    heading={t("screening.reviewHeading")}
+                    placeholder={t("screening.reviewPh")}
                   />
                 </div>
               )}

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { PencilSimple } from "@phosphor-icons/react/dist/ssr";
 import { EnvelopeSimple } from "@phosphor-icons/react/dist/ssr";
@@ -13,6 +15,7 @@ import { BoardZoom } from "./BoardZoom";
 import { JournalMediaGrid } from "./JournalMediaGrid";
 import { SeenStamp } from "@/components/marks/SeenStamp";
 import { CommentBox } from "@/components/marks/CommentBox";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 手账页卡片：一页手账（日记 / 照片堆 / 语录便利贴） */
 export function JournalEntryCard({
@@ -30,6 +33,7 @@ export function JournalEntryCard({
   /** 她本人（输密码进来的读者）：能看到盖章和评论框；访客看公开页时没有 */
   reader?: boolean;
 }) {
+  const t = useT();
   const tapeTone = pickOf(entry.id, TAPE_TONES);
   const tilt = tiltOf(entry.id, 2);
 
@@ -61,10 +65,10 @@ export function JournalEntryCard({
         </span>
         <div className="min-w-0 flex-1">
           <DateStamp date={entry.entry_date} />
-          <p className="mt-2 truncate font-bold">{entry.title ?? "一封信"}</p>
+          <p className="mt-2 truncate font-bold">{entry.title ?? t("journal.letterTitle")}</p>
         </div>
         <Link href="/letters" className="btn-ghost px-4 py-2 text-sm">
-          去信箱拆开
+          {t("journal.openLetter")}
         </Link>
         {author && <EditLink id={entry.id} />}
       </article>
@@ -86,7 +90,7 @@ export function JournalEntryCard({
           <BoardZoom layout={entry.layout} />
         </div>
         {reader && !compact && (
-          <CommentBox entryId={entry.id} heading="在这页写句话" placeholder="看完这页拼贴，想说点什么" compact />
+          <CommentBox entryId={entry.id} heading={t("journal.commentHeading")} placeholder={t("journal.commentPh")} compact />
         )}
         {author && <EditLink id={entry.id} />}
       </article>
@@ -122,7 +126,7 @@ export function JournalEntryCard({
         </footer>
       )}
       {reader && !compact && entry.type === "journal" && (
-        <CommentBox entryId={entry.id} heading="在这页写句话" placeholder="看完这一页，想说点什么" compact />
+        <CommentBox entryId={entry.id} heading={t("journal.commentHeading")} placeholder={t("journal.commentPh2")} compact />
       )}
 
       {author && <EditLink id={entry.id} />}
@@ -131,11 +135,12 @@ export function JournalEntryCard({
 }
 
 function EditLink({ id }: { id: string }) {
+  const t = useT();
   return (
     <Link
       href={`/write?edit=${id}`}
-      aria-label="编辑这一页"
-      title="编辑这一页"
+      aria-label={t("journal.editPage")}
+      title={t("journal.editPage")}
       className="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-ink-soft/60 transition hover:bg-ink/5 hover:text-ink"
     >
       <PencilSimple className="size-4" />

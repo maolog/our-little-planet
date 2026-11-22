@@ -10,6 +10,7 @@ import { PolaroidCard } from "@/components/journal/PolaroidCard";
 import { Lightbox } from "@/components/album/Lightbox";
 import { cn } from "@/lib/cn";
 import { useMounted } from "@/lib/use-mounted";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 大事记里的照片/视频：多个时做成可左右切换的小车，
  *  照片点开进灯箱放大（实况照片可回放），视频当场就能播。
@@ -26,6 +27,7 @@ export function MilestoneMedia({
   tone: string;
   author?: boolean;
 }) {
+  const t = useT();
   // 灯箱里改过的描述回填这份本地状态，小车里的拍立得/视频下的字跟着换
   const [items, setItems] = useState(media);
   const onCaption = useCallback((id: string, caption: string | null) => {
@@ -155,16 +157,16 @@ export function MilestoneMedia({
                 )}
                 <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-ink/55 px-2 py-0.5 text-[10px] font-bold text-paper backdrop-blur">
                   <Play weight="fill" className="size-2.5" />
-                  视频
+                  {t("picker.video")}
                 </span>
               </div>
             ) : (
-              <button type="button" onClick={() => setZoom(idx)} className={cn("block w-full cursor-zoom-in", carousel && "h-full min-h-0")} aria-label={m.caption ?? "放大看这张照片"}>
+              <button type="button" onClick={() => setZoom(idx)} className={cn("block w-full cursor-zoom-in", carousel && "h-full min-h-0")} aria-label={m.caption ?? t("ms.zoomPhoto")}>
                 <PolaroidCard
                   src={m.thumbUrl ?? m.url}
                   fallbackSrc={m.url}
                   caption={m.caption}
-                  alt={m.caption ?? "我们的照片"}
+                  alt={m.caption ?? t("journal.ourPhoto")}
                   tilt={carousel ? 0 : tiltOf(m.id, 2)}
                   tone={tone as never}
                   tape="none"
@@ -184,7 +186,7 @@ export function MilestoneMedia({
         <>
           <button
             type="button"
-            aria-label="上一个"
+            aria-label={t("ms.prev")}
             onClick={() => go(idx - 1)}
             className="absolute -left-1 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-paper/85 text-ink shadow-card backdrop-blur transition hover:bg-paper"
           >
@@ -192,7 +194,7 @@ export function MilestoneMedia({
           </button>
           <button
             type="button"
-            aria-label="下一个"
+            aria-label={t("ms.next")}
             onClick={() => go(idx + 1)}
             className="absolute -right-1 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-paper/85 text-ink shadow-card backdrop-blur transition hover:bg-paper"
           >

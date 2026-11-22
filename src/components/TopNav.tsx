@@ -19,16 +19,20 @@ import {
 import { cn } from "@/lib/cn";
 import type { SectionKey } from "@/lib/settings";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PaletteToggle } from "@/components/PaletteToggle";
+import { LocaleToggle } from "@/components/LocaleToggle";
 import { READER_NAME } from "@/lib/reader";
+import { useT } from "@/i18n/LocaleProvider";
+import type { Dict } from "@/i18n";
 
 const TABS = [
-  { href: "/", section: "home" as SectionKey, label: "首页", icon: HouseSimple, active: "bg-butter text-ink" },
-  { href: "/journal", section: "journal" as SectionKey, label: "手账", icon: Notebook, active: "bg-matcha text-ink" },
-  { href: "/album", section: "album" as SectionKey, label: "相册", icon: Images, active: "bg-mist text-ink" },
-  { href: "/quotes", section: "quotes" as SectionKey, label: "语录", icon: ChatTeardropText, active: "bg-peach text-ink" },
-  { href: "/letters", section: "letters" as SectionKey, label: "信箱", icon: EnvelopeSimple, active: "bg-rose-soft text-rose-deep" },
-  { href: "/timeline", section: "timeline" as SectionKey, label: "大事记", icon: Path, active: "bg-butter text-ink" },
-  { href: "/screenings", section: "screenings" as SectionKey, label: "放映室", icon: FilmSlate, active: "bg-ink/10 text-ink" },
+  { href: "/", section: "home" as SectionKey, labelKey: "nav.tab.home" as keyof Dict, icon: HouseSimple, active: "bg-butter text-ink" },
+  { href: "/journal", section: "journal" as SectionKey, labelKey: "nav.tab.journal" as keyof Dict, icon: Notebook, active: "bg-matcha text-ink" },
+  { href: "/album", section: "album" as SectionKey, labelKey: "nav.tab.album" as keyof Dict, icon: Images, active: "bg-mist text-ink" },
+  { href: "/quotes", section: "quotes" as SectionKey, labelKey: "nav.tab.quotes" as keyof Dict, icon: ChatTeardropText, active: "bg-peach text-ink" },
+  { href: "/letters", section: "letters" as SectionKey, labelKey: "nav.tab.letters" as keyof Dict, icon: EnvelopeSimple, active: "bg-rose-soft text-rose-deep" },
+  { href: "/timeline", section: "timeline" as SectionKey, labelKey: "nav.tab.timeline" as keyof Dict, icon: Path, active: "bg-butter text-ink" },
+  { href: "/screenings", section: "screenings" as SectionKey, labelKey: "nav.tab.screenings" as keyof Dict, icon: FilmSlate, active: "bg-ink/10 text-ink" },
 ] as const;
 
 type HeartDrop = { x: number; size: number; dur: number; delay: number; drift: number; rot: number };
@@ -51,6 +55,7 @@ export function TopNav({
   sections?: Partial<Record<SectionKey, boolean>>;
 }) {
   const pathname = usePathname();
+  const t = useT();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   const reduce = useReducedMotion();
@@ -96,7 +101,7 @@ export function TopNav({
         {/* 页签全放在顶栏（桌面/移动端同一排）。右端一道渐隐边：页签放不下时告诉读者「还能滑」 */}
         <div className="relative min-w-0 flex-1">
           <div className="no-scrollbar flex items-center gap-1 overflow-x-auto sm:gap-1.5">
-            {visibleTabs.map(({ href, label, icon: Icon, active }) => (
+            {visibleTabs.map(({ href, labelKey, icon: Icon, active }) => (
               <Link
                 key={href}
                 href={href}
@@ -108,7 +113,7 @@ export function TopNav({
                 )}
               >
                 <Icon weight="fill" className="size-4 shrink-0" />
-                {label}
+                {t(labelKey)}
               </Link>
             ))}
             {author && (
@@ -122,20 +127,22 @@ export function TopNav({
                 )}
               >
                 <PencilSimple weight="bold" className="size-4 shrink-0" />
-                记一笔
+                {t("nav.writeCta")}
               </Link>
             )}
           </div>
           <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-paper to-transparent" />
         </div>
-        {/* 右端常驻：明暗切换 + 访客的「她的专属」小锁 */}
+        {/* 右端常驻：语言 / 配色 / 明暗切换 + 访客的「她的专属」小锁 */}
         <div className="flex shrink-0 items-center gap-0.5">
+          <LocaleToggle />
+          <PaletteToggle />
           <ThemeToggle />
           {!reader && (
             <Link
               href="/lock"
-              aria-label={`${READER_NAME}的专属入口`}
-              title={`${READER_NAME}的专属：输密码进来`}
+              aria-label={t("nav.lockAria", { name: READER_NAME })}
+              title={t("nav.lockTitle", { name: READER_NAME })}
               className="grid size-8 place-items-center rounded-full text-rose-deep/70 transition hover:bg-rose-soft/60 hover:text-rose-deep"
             >
               <Lock weight="fill" className="size-4" />

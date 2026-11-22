@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SpeakerHigh } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 全站同一时刻只播一条语音：点新的，旧的自动停 */
 let currentAudio: HTMLAudioElement | null = null;
@@ -33,6 +34,7 @@ export function VoiceNote({
   /** 元数据里读出时长时回调（服务端没存的场景，播过一次就有值了） */
   onLoadedDuration?: (seconds: number) => void;
 }) {
+  const t = useT();
   const [playing, setPlaying] = useState(false);
   const [secs, setSecs] = useState<number | null>(duration && duration > 0 ? duration : null);
   const [elapsed, setElapsed] = useState(0);
@@ -102,7 +104,7 @@ export function VoiceNote({
       <button
         type="button"
         onClick={toggle}
-        aria-label={playing ? "暂停语音" : "播放语音"}
+        aria-label={playing ? t("journal.voicePause") : t("journal.voicePlay")}
         className={cn(
           "inline-flex items-center gap-2.5 rounded-full bg-rose-deep py-2 pl-3.5 pr-4 text-paper shadow-sm transition-all duration-300 ease-spring",
           "hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-95"

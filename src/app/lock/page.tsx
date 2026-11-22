@@ -3,8 +3,12 @@ import { isReader } from "@/lib/auth";
 import { LockForm } from "@/components/lock/LockForm";
 import { Sticker } from "@/components/journal/Sticker";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PaletteToggle } from "@/components/PaletteToggle";
+import { LocaleToggle } from "@/components/LocaleToggle";
 import { recordGuestVisitFor } from "@/lib/visitors";
 import { IS_DEMO } from "@/lib/demo";
+import { getLocale } from "@/i18n/server";
+import { translate } from "@/i18n";
 
 export default async function LockPage({
   searchParams,
@@ -23,10 +27,21 @@ export default async function LockPage({
         <Sticker name="cloud" className="absolute bottom-[16%] left-[18%] size-14 rotate-3 text-mist/70" />
         <Sticker name="flower" className="absolute bottom-[22%] right-[12%] size-12 rotate-[-10deg] text-matcha/80" />
       </div>
-      <div className="absolute right-4 top-4 z-10">
+      <div className="absolute right-4 top-4 z-10 flex items-center gap-1">
+        <LocaleToggle className="rounded-full bg-paper/60 backdrop-blur" />
+        <PaletteToggle className="rounded-full bg-paper/60 backdrop-blur" />
         <ThemeToggle className="bg-paper/60 backdrop-blur" />
       </div>
-      <LockForm next={next} demoHint={IS_DEMO ? `演示站：解锁密码 ${process.env.READER_PASSWORD ?? "0520"}` : undefined} />
+      <LockForm
+        next={next}
+        demoHint={
+          IS_DEMO
+            ? translate(await getLocale(), "lock.demoHint", {
+                password: process.env.READER_PASSWORD ?? "0520",
+              })
+            : undefined
+        }
+      />
     </main>
   );
 }

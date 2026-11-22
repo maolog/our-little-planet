@@ -5,10 +5,12 @@ import { CalendarBlank, X } from "@phosphor-icons/react";
 import { cn } from "@/lib/cn";
 import { AlbumPickThumb } from "./AlbumPickThumb";
 import type { AlbumPickItem } from "./MilestoneManager";
+import { useT } from "@/i18n/LocaleProvider";
+import type { Dict } from "@/i18n";
 
-function monthLabel(m: string): string {
+function monthLabel(m: string, t: (key: keyof Dict, params?: Record<string, string | number>) => string): string {
   const [y, mo] = m.split("-");
-  return `${y} 年 ${Number(mo)} 月`;
+  return t("home.cal.month", { y, m: Number(mo) });
 }
 
 /** 筛选贴上的数量小徽章 */
@@ -51,6 +53,7 @@ export function MediaPicker({
   onToggle: (id: string) => void;
   emptyHint: string;
 }) {
+  const t = useT();
   const [month, setMonth] = useState("all");
   const [day, setDay] = useState("");
   const [tag, setTag] = useState("all");
@@ -116,7 +119,7 @@ export function MediaPicker({
           }}
           className={pillCls(month === "all")}
         >
-          全部
+          {t("filter.all")}
           <CountBadge n={monthAllN} active={month === "all"} />
         </button>
         {months.map(([m, n]) => (
@@ -129,7 +132,7 @@ export function MediaPicker({
             }}
             className={pillCls(month === m)}
           >
-            {monthLabel(m)}
+            {monthLabel(m, t)}
             <CountBadge n={n} active={month === m} />
           </button>
         ))}
@@ -142,11 +145,11 @@ export function MediaPicker({
               setDay(e.target.value);
               if (e.target.value) setMonth(e.target.value.slice(0, 7));
             }}
-            aria-label="按具体日期筛选"
+            aria-label={t("album.filterDate")}
             className="bg-transparent font-round text-xs font-bold text-ink outline-none"
           />
           {day && (
-            <button type="button" onClick={() => setDay("")} aria-label="清除日期筛选" className="grid size-4 place-items-center rounded-full text-ink-soft transition hover:bg-ink/10 hover:text-ink">
+            <button type="button" onClick={() => setDay("")} aria-label={t("album.clearDate")} className="grid size-4 place-items-center rounded-full text-ink-soft transition hover:bg-ink/10 hover:text-ink">
               <X weight="bold" className="size-2.5" />
             </button>
           )}
@@ -157,9 +160,9 @@ export function MediaPicker({
       <div className="flex flex-wrap items-center gap-1.5">
         {(
           [
-            ["all", `全部 ${photoN + videoN}`],
-            ["photo", `照片 ${photoN}`],
-            ["video", `视频 ${videoN}`],
+            ["all", t("album.kindAll", { n: photoN + videoN })],
+            ["photo", t("album.kindPhoto", { n: photoN })],
+            ["video", t("album.kindVideo", { n: videoN })],
           ] as const
         ).map(([value, label]) => (
           <button key={value} type="button" onClick={() => setKind(value)} className={pillCls(kind === value)}>
@@ -169,20 +172,20 @@ export function MediaPicker({
         {tags.length > 0 && <span className="mx-1 h-4 w-px bg-ink/15" aria-hidden />}
         {tag !== "all" && (
           <button type="button" onClick={() => setTag("all")} className={pillCls(false)}>
-            全部标签
+            {t("picker.allTags")}
           </button>
         )}
-        {tags.map(([t, n]) => (
-          <button key={t} type="button" onClick={() => setTag(t)} className={pillCls(tag === t)}>
-            {t}
-            <CountBadge n={n} active={tag === t} />
+        {tags.map(([tg, n]) => (
+          <button key={tg} type="button" onClick={() => setTag(tg)} className={pillCls(tag === tg)}>
+            {tg}
+            <CountBadge n={n} active={tag === tg} />
           </button>
         ))}
       </div>
 
       {selected.length > 0 && selectedVisible < selected.length && (
         <p className="font-round text-[11px] font-bold text-ink-soft">
-          已选 {selected.length} 个，当前筛选下只看得到其中 {selectedVisible} 个——被筛掉的仍保持勾选
+          {t("picker.hidden", { n: selected.length, visible: selectedVisible })}
         </p>
       )}
 
@@ -204,7 +207,7 @@ export function MediaPicker({
             >
               <AlbumPickThumb item={p} />
               {p.kind === "video" && (
-                <span className="absolute left-1 top-1 rounded-full bg-ink/55 px-1.5 py-0.5 text-[9px] font-bold text-paper">视频</span>
+                <span className="absolute left-1 top-1 rounded-full bg-ink/55 px-1.5 py-0.5 text-[9px] font-bold text-paper">{t("picker.video")}</span>
               )}
               {on && (
                 <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-rose-deep text-paper">{idx + 1}</span>
@@ -212,7 +215,7 @@ export function MediaPicker({
             </button>
           );
         })}
-        {shown.length === 0 && <p className="col-span-full py-8 text-center text-sm text-ink-soft">这个筛选下没有照片/视频，换个条件试试</p>}
+        {shown.length === 0 && <p className="col-span-full py-8 text-center text-sm text-ink-soft">{t("picker.empty")}</p>}
       </div>
     </div>
   );

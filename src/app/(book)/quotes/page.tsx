@@ -13,13 +13,19 @@ import { GuestLock } from "@/components/GuestLock";
 import { Reveal } from "@/components/Reveal";
 import { cn } from "@/lib/cn";
 import { recordGuestVisitFor } from "@/lib/visitors";
+import { getLocale, tWith } from "@/i18n/server";
+import type { Dict } from "@/i18n";
 
-export const metadata: Metadata = { title: "语录墙" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: tWith(await getLocale(), "meta.quotes") };
+}
 
 export default async function QuotesPage() {
   await recordGuestVisitFor("/quotes");
+  const locale = await getLocale();
+  const t = (key: keyof Dict, params?: Record<string, string | number>) => tWith(locale, key, params);
   const [reader, author, settings] = [await isReader(), await isAuthor(), getSettings()];
-  if (!reader && !sectionOpen(settings, "quotes")) return <GuestLock section="语录" />;
+  if (!reader && !sectionOpen(settings, "quotes")) return <GuestLock section={t("nav.tab.quotes")} />;
   // 访客只看标了「公开」的便利贴
   const quotes = listEntries({ type: "quote", guest: !reader });
   const hideDate = settings.quotesHideDate === "1";
@@ -27,12 +33,12 @@ export default async function QuotesPage() {
   return (
     <div className="py-10">
       <header className="text-center">
-        <h1 className="text-4xl font-bold">语录墙</h1>
-        <p className="mt-3 text-ink-soft">说过的可爱话、录下的悄悄话，都贴在这儿</p>
+        <h1 className="text-4xl font-bold">{t("meta.quotes")}</h1>
+        <p className="mt-3 text-ink-soft">{t("quote.subtitle")}</p>
         <DoodleDivider variant="hearts" className="mx-auto mt-6 w-28" />
         {author && (
           <div className="mt-6">
-            <AddEntryButton href="/write?type=quote" icon="quote" label="再贴一张便利贴" />
+            <AddEntryButton href="/write?type=quote" icon="quote" label={t("quote.add")} />
           </div>
         )}
       </header>
@@ -40,10 +46,10 @@ export default async function QuotesPage() {
       {quotes.length === 0 ? (
         <div className="card-paper mx-auto mt-16 flex max-w-md flex-col items-center gap-4 py-14 text-center">
           <Sticker name="heart" className="size-12 text-rose/80" />
-          <p className="text-ink-soft">{reader ? "还没有贴上过谁说的傻话" : "能给你看的话还在准备中"}</p>
+          <p className="text-ink-soft">{reader ? t("quote.emptyReader") : t("quote.emptyGuest")}</p>
           {author && (
             <Link href="/write?type=quote" className="btn-primary">
-              贴一张便利贴
+              {t("quote.first")}
             </Link>
           )}
         </div>

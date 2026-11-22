@@ -1,0 +1,36 @@
+# 用法见 README「部署 → Docker Compose」一节：
+#   cp .env.example .env && vim .env     # 配置全部写在 .env
+#   mkdir -p data && sudo chown -R 1000:1000 data
+#   docker compose up -d --build
+services:
+  journal:
+    build:
+      context: .
+      args:
+        # NEXT_PUBLIC_* 构建期内联，改动后需要 docker compose up -d --build 重新构建
+        NEXT_PUBLIC_READER_NAME: ${NEXT_PUBLIC_READER_NAME:-}
+        NEXT_PUBLIC_DEMO_MODE: ${NEXT_PUBLIC_DEMO_MODE:-}
+    image: our-little-planet:latest
+    container_name: our-little-planet
+    restart: unless-stopped
+    # 运行期环境变量（AUTH_SECRET、口令、OSS、TZ 等），来自同目录的 .env
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    # 只绑本机回环：外网走宿主 Nginx/Caddy 反代 + HTTPS（deploy/nginx.conf.example 不变）
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      # journal.db + media/ 持久化；备份依旧 = 备份这个 data/ 目录
+      - ./data:/app/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

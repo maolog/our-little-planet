@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
 import { Sticker } from "@/components/journal/Sticker";
 import { useMounted } from "@/lib/use-mounted";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 全屏 3D 翻书过场：
  *  phase="opening" —— 合着的本子封面朝左翻开（解锁进本子）；
@@ -13,6 +14,7 @@ import { useMounted } from "@/lib/use-mounted";
  *  必须 portal 到 body：调用方（LockForm 自己就在 rotateY）带 transform，
  *  fixed 遮罩会被困在卡片里——Lightbox 踩过同一个坑 */
 export function BookFlip({ phase, onDone }: { phase: "opening" | "closing"; onDone: () => void }) {
+  const t = useT();
   const mounted = useMounted();
   const reduce = useReducedMotion();
   // closing 从摊开合上，opening 从合着翻开
@@ -55,7 +57,7 @@ export function BookFlip({ phase, onDone }: { phase: "opening" | "closing"; onDo
           <div className="absolute inset-0 overflow-hidden rounded-r-2xl bg-paper shadow-lifted">
             <div className="absolute inset-y-0 left-0 w-4 bg-paper-deep/80" />
             <div className="flex h-full flex-col items-center justify-center gap-4 pl-6 pr-8">
-              <p className="font-script text-3xl text-ink/85">我们的故事</p>
+              <p className="font-script text-3xl text-ink/85">{t("lock.book.title")}</p>
               <div className="flex w-4/5 flex-col gap-3">
                 <div className="h-1.5 w-full rounded-full bg-ink/10" />
                 <div className="h-1.5 w-11/12 rounded-full bg-ink/10" />
@@ -63,7 +65,7 @@ export function BookFlip({ phase, onDone }: { phase: "opening" | "closing"; onDo
               </div>
               <Sticker name="heart" className="size-8 rotate-6 text-rose/70" />
               <p className="font-hand text-sm tracking-[0.2em] text-ink-soft/60">
-                {phase === "opening" ? "翻开啦，都在里面" : "合上本子，明天继续写"}
+                {phase === "opening" ? t("lock.book.openMsg") : t("lock.book.closeMsg")}
               </p>
             </div>
           </div>
@@ -83,8 +85,8 @@ export function BookFlip({ phase, onDone }: { phase: "opening" | "closing"; onDo
             <div className="absolute inset-y-0 left-0 w-4 bg-ink/30" />
             <div className="absolute inset-3 rounded-xl border border-paper/25" />
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 pl-5">
-              <span className="font-script text-5xl leading-none text-paper/95 rotate-[2deg]">我们俩</span>
-              <span className="font-hand text-sm tracking-[0.45em] text-paper/75 pl-[0.45em]">的手账</span>
+              <span className="font-script text-5xl leading-none text-paper/95 rotate-[2deg]">{t("lock.book.coverUs")}</span>
+              <span className="font-hand text-sm tracking-[0.45em] text-paper/75 pl-[0.45em]">{t("lock.book.coverJournal")}</span>
               <Sticker name="star" className="mt-3 size-6 -rotate-6 text-butter/85" />
             </div>
           </div>

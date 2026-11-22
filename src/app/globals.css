@@ -110,6 +110,142 @@
   --btn-ink: #331420;
 }
 
+/* ========== 配色主题（data-palette，与明暗模式正交） ==========
+   顺序约定：基础亮色(:root) → 基础暗色(.dark) → 各主题亮色 → 各主题暗色。
+   同特异性下后者覆盖前者，故每个主题的暗色块必须重列全部变量。 */
+
+/* --- 樱花：嫩粉少女感 --- */
+:root[data-palette="sakura"] {
+  --paper: #fff7f9;
+  --paper-deep: #f9ecef;
+  --card: #fffbfc;
+  --ink: #5c4a52;
+  --ink-soft: #82666e;
+  --rose: #ef9bb5;
+  --rose-deep: #cf6b8a;
+  --rose-soft: #fde7ee;
+  --peach: #f8c9b0;
+  --butter: #f8e6b8;
+  --mist: #b3cede;
+  --matcha: #c6dcc4;
+  --paper-warm: #fdf5f7;
+  --env: #f8e8ec;
+  --env-line: #ecd2d9;
+  --env-letter: #fdf6f7;
+  --env-flap: #f5e0e5;
+  --btn-ink: #fff7f9;
+  --letter-rule: rgba(207, 107, 138, 0.14);
+}
+.dark[data-palette="sakura"] {
+  --paper: #261d22;
+  --paper-deep: #1c151a;
+  --card: #30262c;
+  --ink: #f2e4ea;
+  --ink-soft: #d3b9c2;
+  --rose: #f0a4bd;
+  --rose-deep: #e889a8;
+  --rose-soft: #4d3542;
+  --peach: #553a41;
+  --butter: #574a35;
+  --mist: #3a4650;
+  --matcha: #3f4d3f;
+  --paper-warm: #32272d;
+  --env: #41333a;
+  --env-line: #624d55;
+  --env-letter: #32272d;
+  --env-flap: #4d3d44;
+  --btn-ink: #4a1526;
+  --letter-rule: rgba(240, 164, 189, 0.17);
+}
+
+/* --- 薰衣草：梦幻紫 --- */
+:root[data-palette="lavender"] {
+  --paper: #f9f7ff;
+  --paper-deep: #efecfb;
+  --card: #fdfcff;
+  --ink: #4f4a63;
+  --ink-soft: #75708c;
+  --rose: #a99ae8;
+  --rose-deep: #6f5fbf;
+  --rose-soft: #ece7fb;
+  --peach: #f3c6d8;
+  --butter: #efe6b8;
+  --mist: #a8c6e8;
+  --matcha: #bcd8c8;
+  --paper-warm: #f7f5ff;
+  --env: #ece8fa;
+  --env-line: #d9d2f0;
+  --env-letter: #faf9ff;
+  --env-flap: #e4def6;
+  --btn-ink: #f9f7ff;
+  --letter-rule: rgba(111, 95, 191, 0.15);
+}
+.dark[data-palette="lavender"] {
+  --paper: #1e1c2b;
+  --paper-deep: #16141f;
+  --card: #282538;
+  --ink: #e9e5f5;
+  --ink-soft: #b6b1d0;
+  --rose: #b3a5f0;
+  --rose-deep: #9a88ea;
+  --rose-soft: #3a3455;
+  --peach: #4d3d55;
+  --butter: #514c35;
+  --mist: #34425a;
+  --matcha: #3a4a44;
+  --paper-warm: #262336;
+  --env: #322e46;
+  --env-line: #4e4868;
+  --env-letter: #262336;
+  --env-flap: #3c3752;
+  --btn-ink: #2c1f66;
+  --letter-rule: rgba(179, 165, 240, 0.17);
+}
+
+/* --- 蜜桃：暖橘甜杏 --- */
+:root[data-palette="peach"] {
+  --paper: #fff8f2;
+  --paper-deep: #f9ece1;
+  --card: #fffcf8;
+  --ink: #5f4a3e;
+  --ink-soft: #876a59;
+  --rose: #f4a583;
+  --rose-deep: #d97a56;
+  --rose-soft: #fdeae1;
+  --peach: #f9c8a5;
+  --butter: #f8e3a8;
+  --mist: #aecbd8;
+  --matcha: #c3d8bb;
+  --paper-warm: #fdf6ee;
+  --env: #f8ead9;
+  --env-line: #eed8bd;
+  --env-letter: #fdf7ef;
+  --env-flap: #f4e4cc;
+  --btn-ink: #fff8f2;
+  --letter-rule: rgba(217, 122, 86, 0.15);
+}
+.dark[data-palette="peach"] {
+  --paper: #251d18;
+  --paper-deep: #1b1511;
+  --card: #302720;
+  --ink: #f2e6da;
+  --ink-soft: #d2b9a4;
+  --rose: #f0a583;
+  --rose-deep: #e08a63;
+  --rose-soft: #4d3529;
+  --peach: #55402e;
+  --butter: #564b31;
+  --mist: #3a4750;
+  --matcha: #3f4d3a;
+  --paper-warm: #2e2721;
+  --env: #3c3227;
+  --env-line: #5c4c3c;
+  --env-letter: #2e2721;
+  --env-flap: #4a3f31;
+  --btn-ink: #6b2f14;
+  --letter-rule: rgba(240, 165, 131, 0.17);
+}
+
 @theme inline {
   --color-paper: var(--paper);
   --color-paper-deep: var(--paper-deep);

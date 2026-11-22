@@ -7,6 +7,7 @@ import { parseLrc } from "@/lib/lrc";
 import { NOTE_COLORS } from "@/lib/tilt";
 import { WashiTape } from "@/components/journal/WashiTape";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 大事记的背景音乐：右下角一张会转的小唱片 + 可抽出的歌词信纸卡。
  *  视频联动：页面里任何 <video> 开口（内联的、灯箱 portal 的都算）音乐先让路，
@@ -32,6 +33,7 @@ export function BgmPlayer({ src, title, lyrics }: { src: string; title: string; 
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(0);
   const reduce = useReducedMotion();
+  const t = useT();
   const lrc = useMemo(() => parseLrc(lyrics), [lyrics]);
 
   // 当前唱到第几行：二分找最后一个时间 <= 当前进度的行
@@ -161,7 +163,7 @@ export function BgmPlayer({ src, title, lyrics }: { src: string; title: string; 
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="收起歌词"
+              aria-label={t("bgm.collapse")}
               className="absolute right-2 top-2 grid size-7 place-items-center rounded-full text-ink/50 transition hover:bg-ink/10 hover:text-ink"
             >
               <X weight="bold" className="size-4" />
@@ -210,7 +212,7 @@ export function BgmPlayer({ src, title, lyrics }: { src: string; title: string; 
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            aria-label={open ? "收起歌词" : "看歌词"}
+            aria-label={open ? t("bgm.collapse") : t("bgm.expand")}
             aria-expanded={open}
             className="grid size-9 place-items-center rounded-full bg-paper/90 text-ink shadow-card backdrop-blur transition-transform duration-300 ease-spring hover:-translate-y-0.5"
           >
@@ -220,7 +222,7 @@ export function BgmPlayer({ src, title, lyrics }: { src: string; title: string; 
         <button
           type="button"
           onClick={toggle}
-          aria-label={playing ? "暂停背景音乐" : "播放背景音乐"}
+          aria-label={playing ? t("bgm.pause") : t("bgm.play")}
           className="relative grid size-14 place-items-center overflow-hidden rounded-full bg-ink shadow-lifted transition-transform duration-300 ease-spring hover:-translate-y-1 active:scale-95"
         >
           {/* 唱片纹路 + 唱面上一点反光：转起来就是它在转（动画在 globals.css，尊重「减少动态」） */}

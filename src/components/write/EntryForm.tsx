@@ -36,6 +36,10 @@ import { TagDropdown } from "./TagDropdown";
 import { AlbumPickThumb } from "./AlbumPickThumb";
 import type { AlbumPickItem } from "./MilestoneManager";
 import { READER_NAME } from "@/lib/reader";
+import { useT } from "@/i18n/LocaleProvider";
+import type { Dict } from "@/i18n/dict";
+
+type DictKey = keyof Dict;
 
 export type { MediaDTO };
 
@@ -176,13 +180,13 @@ const RENDER_CHUNK = 60;
 /** 写一页里可选的内容类型：前四个走本表单；大事记/彩蛋是外部表单，选中后由外层渲染 */
 export type FormKind = EntryDTO["type"] | "milestone" | "egg";
 
-const TYPES: { value: FormKind; label: string; icon: typeof Notebook; hint: string }[] = [
-  { value: "journal", label: "手账页", icon: Notebook, hint: "写一段今天，配上照片" },
-  { value: "photo", label: "存照片", icon: Images, hint: "批量传，只进拍立得墙" },
-  { value: "quote", label: "存语录", icon: ChatTeardropText, hint: "可爱话，还能录语音" },
-  { value: "letter", label: "写信", icon: EnvelopeSimple, hint: "封进信箱，可定时" },
-  { value: "milestone", label: "大事记", icon: FlagBanner, hint: "钉在时间轴上的大事" },
-  { value: "egg", label: "彩蛋", icon: Gift, hint: "到日子才开的惊喜" },
+const TYPES: { value: FormKind; labelKey: DictKey; icon: typeof Notebook; hintKey: DictKey }[] = [
+  { value: "journal", labelKey: "ef.type.journal", icon: Notebook, hintKey: "ef.type.journalHint" },
+  { value: "photo", labelKey: "ef.type.photo", icon: Images, hintKey: "ef.type.photoHint" },
+  { value: "quote", labelKey: "ef.type.quote", icon: ChatTeardropText, hintKey: "ef.type.quoteHint" },
+  { value: "letter", labelKey: "ef.type.letter", icon: EnvelopeSimple, hintKey: "ef.type.letterHint" },
+  { value: "milestone", labelKey: "ef.type.milestone", icon: FlagBanner, hintKey: "ef.type.milestoneHint" },
+  { value: "egg", labelKey: "ef.type.egg", icon: Gift, hintKey: "ef.type.eggHint" },
 ];
 
 const MOOD_COLORS: Record<StickerName, string> = {
@@ -264,6 +268,7 @@ async function probeVideoSize(file: File): Promise<{ width?: number; height?: nu
 /** 视频卡的懒加载预览：进视口才挂 <video>，几十个视频也不会同时拉元信息；
  *  浏览器放不了（桌面 Chrome 遇 HEVC）时退服务端抽的封面，总能认出是哪段 */
 function LazyPreviewVideo({ src, poster, onError }: { src: string; poster?: string | null; onError: () => void }) {
+  const t = useT();
   const boxRef = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
   const [broken, setBroken] = useState(false);
@@ -287,7 +292,7 @@ function LazyPreviewVideo({ src, poster, onError }: { src: string; poster?: stri
       {inView ? (
         broken && poster ? (
           /* eslint-disable-next-line @next/next/no-img-element -- 视频封面，带鉴权的接口地址 */
-          <img src={poster} alt="视频封面" className="absolute inset-0 h-full w-full object-cover" />
+          <img src={poster} alt={t("thumb.videoPoster")} className="absolute inset-0 h-full w-full object-cover" />
         ) : (
           <video
             src={src}
@@ -311,11 +316,12 @@ function LazyPreviewVideo({ src, poster, onError }: { src: string; poster?: stri
 
 /** 卡片底部的上传状态条：排队 / 进度 / 传好 / 重传 */
 function UploadChip({ st, onRetry }: { st: UpState | undefined; onRetry: () => void }) {
+  const t = useT();
   if (!st || st.status === "waiting") {
     return (
       <p className="mt-1.5 flex items-center gap-1.5 font-round text-[11px] font-bold tracking-wider text-ink-soft/70">
         <SpinnerGap className="size-3 animate-spin" />
-        {st ? "排队上传中…" : "读取文件信息…"}
+        {st ? t("ef.chip.waiting") : t("ef.chip.reading")}
       </p>
     );
   }
@@ -325,7 +331,7 @@ function UploadChip({ st, onRetry }: { st: UpState | undefined; onRetry: () => v
         <div className="h-1 overflow-hidden rounded-full bg-ink/10">
           <div className="h-full rounded-full bg-rose transition-all" style={{ width: `${st.pct}%` }} />
         </div>
-        <p className="mt-0.5 font-round text-[11px] font-bold tracking-wider text-ink-soft/70">上传中 {st.pct}%</p>
+        <p className="mt-0.5 font-round text-[11px] font-bold tracking-wider text-ink-soft/70">{t("ef.chip.uploading", { pct: st.pct })}</p>
       </div>
     );
   }
@@ -333,14 +339,14 @@ function UploadChip({ st, onRetry }: { st: UpState | undefined; onRetry: () => v
     return (
       <p className="mt-1.5 flex items-center gap-1 font-round text-[11px] font-bold tracking-wider text-matcha">
         <Check weight="bold" className="size-3" />
-        已传好
+        {t("ef.chip.done")}
       </p>
     );
   }
   if (st.status === "error") {
     return (
       <p className="mt-1.5 flex items-center gap-1.5 font-round text-[11px] font-bold tracking-wider text-rose-deep">
-        <span className="truncate" title={st.error ?? "没传上去"}>{st.error ?? "没传上去"}</span>
+        <span className="truncate" title={st.error ?? t("ef.chip.fail")}>{st.error ?? t("ef.chip.fail")}</span>
         {!st.fatal && (
           <button
             type="button"
@@ -348,7 +354,7 @@ function UploadChip({ st, onRetry }: { st: UpState | undefined; onRetry: () => v
             className="flex shrink-0 items-center gap-1 rounded-full bg-rose-soft px-2 py-0.5 transition hover:opacity-80"
           >
             <ArrowClockwise weight="bold" className="size-3" />
-            重传
+            {t("ef.chip.retry")}
           </button>
         )}
       </p>
@@ -357,14 +363,14 @@ function UploadChip({ st, onRetry }: { st: UpState | undefined; onRetry: () => v
   if (st.status === "cancelled") {
     return (
       <p className="mt-1.5 flex items-center gap-1.5 font-round text-[11px] font-bold tracking-wider text-ink-soft/70">
-        <span>已取消（没传到服务器）</span>
+        <span>{t("ef.chip.cancelled")}</span>
         <button
           type="button"
           onClick={onRetry}
           className="flex shrink-0 items-center gap-1 rounded-full bg-rose-soft px-2 py-0.5 transition hover:opacity-80"
         >
           <ArrowClockwise weight="bold" className="size-3" />
-          重传
+          {t("ef.chip.retry")}
         </button>
       </p>
     );
@@ -388,36 +394,37 @@ function TagField({
   onDeleteTag?: (name: string) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState("");
   const [suggestOpen, setSuggestOpen] = useState(false);
   function add(raw: string) {
-    const t = raw.trim().slice(0, TAG_MAX_LEN).trim();
-    if (!t || tags.includes(t) || tags.length >= MAX_TAGS_PER_ENTRY) return;
-    onChange([...tags, t]);
+    const tg = raw.trim().slice(0, TAG_MAX_LEN).trim();
+    if (!tg || tags.includes(tg) || tags.length >= MAX_TAGS_PER_ENTRY) return;
+    onChange([...tags, tg]);
     // 立刻进全局标签库：别的地方马上能选到（表单就算最后不保存，标签也已经在了）
     void fetch("/api/tags", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: t }),
+      body: JSON.stringify({ name: tg }),
     }).catch(() => undefined);
   }
-  const suggestions = knownTags.filter((t) => !tags.includes(t)).slice(0, 8);
+  const suggestions = knownTags.filter((tg) => !tags.includes(tg)).slice(0, 8);
   return (
     <div className="mt-5">
-      <p className="mb-1.5 text-sm font-bold text-ink-soft">贴个标签（像「青海之行」，相册里能按它筛）</p>
+      <p className="mb-1.5 text-sm font-bold text-ink-soft">{t("ef.tagHint")}</p>
       <div className="flex flex-wrap items-center gap-2">
-        {tags.map((t) => (
+        {tags.map((tg) => (
           <span
-            key={t}
+            key={tg}
             className="flex items-center gap-1 rounded-full px-2.5 py-1 font-hand text-base text-ink shadow-sm"
-            style={{ background: tagColor(t), transform: `rotate(${tiltOf(t, 2)}deg)` }}
+            style={{ background: tagColor(tg), transform: `rotate(${tiltOf(tg, 2)}deg)` }}
           >
-            {t}
+            {tg}
             <button
               type="button"
-              onClick={() => onChange(tags.filter((x) => x !== t))}
+              onClick={() => onChange(tags.filter((x) => x !== tg))}
               disabled={disabled}
-              aria-label={`移除标签 ${t}`}
+              aria-label={t("ef.tagRemove", { name: tg })}
               className="grid size-4 place-items-center rounded-full bg-ink/10 transition hover:bg-ink/25"
             >
               <X weight="bold" className="size-2.5" />
@@ -440,7 +447,7 @@ function TagField({
               }
             }}
             disabled={disabled}
-            placeholder={tags.length === 0 ? "输入后回车，比如：青海之行" : "再加一个（回车）"}
+            placeholder={tags.length === 0 ? t("ef.tagPhFirst") : t("ef.tagPhMore")}
             className="w-full rounded-full border border-ink/15 bg-paper px-3.5 py-1.5 text-sm outline-none placeholder:text-ink-soft/50 focus:border-rose"
           />
           {suggestOpen && !disabled && (
@@ -448,8 +455,8 @@ function TagField({
               all={knownTags}
               exclude={tags}
               typed={draft}
-              onPick={(t) => {
-                add(t);
+              onPick={(tg) => {
+                add(tg);
                 setDraft("");
               }}
             />
@@ -458,19 +465,19 @@ function TagField({
       </div>
       {suggestions.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-ink-soft/70">标签库：</span>
-          {suggestions.map((t) => (
-            <span key={t} className="flex items-center rounded-full border border-dashed border-ink/25 transition hover:border-rose">
-              <button type="button" disabled={disabled} onClick={() => add(t)} className="px-2.5 py-0.5 font-hand text-sm text-ink-soft">
-                {t}
+          <span className="text-xs text-ink-soft/70">{t("wd.tagLib")}</span>
+          {suggestions.map((tg) => (
+            <span key={tg} className="flex items-center rounded-full border border-dashed border-ink/25 transition hover:border-rose">
+              <button type="button" disabled={disabled} onClick={() => add(tg)} className="px-2.5 py-0.5 font-hand text-sm text-ink-soft">
+                {tg}
               </button>
               {onDeleteTag && (
                 <button
                   type="button"
                   disabled={disabled}
-                  onClick={() => onDeleteTag(t)}
-                  aria-label={`删掉标签 ${t}`}
-                  title="从标签库里删掉（所有照片上都会一起撕掉）"
+                  onClick={() => onDeleteTag(tg)}
+                  aria-label={t("wd.libDelTag", { name: tg })}
+                  title={t("wd.libDelTagTitle")}
                   className="mr-1 grid size-3.5 place-items-center rounded-full text-ink-soft/60 transition hover:bg-rose-soft hover:text-rose-deep"
                 >
                   <X weight="bold" className="size-2" />
@@ -531,6 +538,7 @@ export function EntryForm({
   onTypeChange?: (t: FormKind) => void;
 }) {
   const toast = useToast();
+  const t = useT();
   const [innerType, setInnerType] = useState<FormKind>(initial?.type ?? "journal");
   const type = typeProp ?? innerType;
   const selectType = (t: FormKind) => {
@@ -713,9 +721,9 @@ export function EntryForm({
         return dto;
       } catch (e) {
         st.status = controller.signal.aborted || uploadGenRef.current !== gen ? "cancelled" : "error";
-        st.error = e instanceof Error ? e.message : "上传失败";
+        st.error = e instanceof Error ? e.message : t("ef.upFail");
         bump();
-        if (st.status === "error") toast(`${st.error}（可点卡片上的「重传」）`, "error");
+        if (st.status === "error") toast(t("ef.upFailToast", { msg: st.error }), "error");
         throw e;
       } finally {
         uploadSem.release();
@@ -747,7 +755,7 @@ export function EntryForm({
         st.dto = undefined;
       }
     }
-    toast(wiped > 0 ? `已取消整批上传，刚传好的 ${wiped} 个也从服务器撤下了` : "已取消整批上传");
+    toast(wiped > 0 ? t("ef.cancelAllWiped", { n: wiped }) : t("ef.cancelAll"));
     bump();
   }
 
@@ -885,7 +893,7 @@ export function EntryForm({
     if (!list || list.length === 0) return;
     // 有一批还在分析或等着确认：先处理完它再选新的，两批混在一起理不清
     if (analysis) {
-      toast("先把这批处理完（开始上传或取消）再选新的");
+      toast(t("ef.batchBusy"));
       if (fileInput.current) fileInput.current.value = "";
       if (folderInput.current) folderInput.current.value = "";
       return;
@@ -896,7 +904,7 @@ export function EntryForm({
     const livps = files.filter((f) => /\.livp$/i.test(f.name));
     if (livps.length > 0) {
       files = files.filter((f) => !/\.livp$/i.test(f.name));
-      setPairHint(`正在拆开 ${livps.length} 个 Live 图（.livp）…`);
+      setPairHint(t("ef.livpSplit", { n: livps.length }));
       const expanded: File[] = [];
       await Promise.all(
         livps.map(async (f) => {
@@ -911,7 +919,7 @@ export function EntryForm({
         })
       );
       files = [...files, ...expanded];
-      setPairHint(expanded.length > 0 ? `已拆开 ${livps.length} 个 Live 图，同名的照片+视频会自动配对` : "这些 livp 里没找到照片/视频，跳过了");
+      setPairHint(expanded.length > 0 ? t("ef.livpDone", { n: livps.length }) : t("ef.livpNone"));
       setTimeout(() => setPairHint(""), 6000);
     }
     const next: PickItem[] = [];
@@ -934,7 +942,7 @@ export function EntryForm({
     if (next.length === 0) return;
     const paired = autoPair(next);
     if (paired > 0) {
-      setPairHint(`检测到 ${paired} 组同名照片+视频，已自动配对成 Live Photo`);
+      setPairHint(t("ef.autoPair", { n: paired }));
       setTimeout(() => setPairHint(""), 5000);
     }
     if (fileInput.current) fileInput.current.value = "";
@@ -972,7 +980,7 @@ export function EntryForm({
     // 小批量：维持原行为，选完就出卡、后台传，写描述不用等
     setItems((prev) => [...prev, ...next]);
     // 超过大小上限的直接亮「传不了」，不发请求也不给重传（传了也白传）
-    for (const { key, name } of oversize) failFatal(key, `「${name}」太大了（单文件最多 ${MAX_UPLOAD_LABEL}）`);
+    for (const { key, name } of oversize) failFatal(key, t("ef.tooBig", { name, max: MAX_UPLOAD_LABEL }));
     const takenDates = await analyzeBatchItems(next);
     // 分析结果写回 React state：state 里的 item 可能已被「预览失败」等 patchItem 换成副本，
     // 分析直接改的是数组里的原对象，必须补一遍 patch 才能同步到正在显示的副本上
@@ -991,8 +999,8 @@ export function EntryForm({
     const oversizeKeys = new Set(oversize.map((o) => o.key));
     const dupN = next.filter((x) => x.dup).length;
     const suspectN = next.filter((x) => x.dupSuspect).length;
-    if (dupN > 0) toast(`跳过 ${dupN} 个已传过/重复的文件（灰色卡片不会重复上传）`);
-    if (suspectN > 0) toast(`有 ${suspectN} 个文件名字像重复的（内容其实不同），已灰掉标记，想留下点「仍然要传」`);
+    if (dupN > 0) toast(t("ef.skipDup", { n: dupN }));
+    if (suspectN > 0) toast(t("ef.suspectToast", { n: suspectN }));
     for (const it of next) {
       if (it.dup || it.dupSuspect || oversizeKeys.has(it.key)) continue;
       if (it.file) enqueueUpload(it.key, it.file, { width: it.width, height: it.height, hevc: it.hevc, fp: it.fp });
@@ -1010,7 +1018,7 @@ export function EntryForm({
     setItems((prev) => [...prev, ...next]);
     setPreviewFilter("new");
     setRenderLimit(RENDER_CHUNK);
-    for (const { key, name } of oversize) failFatal(key, `「${name}」太大了（单文件最多 ${MAX_UPLOAD_LABEL}）`);
+    for (const { key, name } of oversize) failFatal(key, t("ef.tooBig", { name, max: MAX_UPLOAD_LABEL }));
     const oversizeKeys = new Set(oversize.map((o) => o.key));
     let started = 0;
     for (const it of next) {
@@ -1023,7 +1031,7 @@ export function EntryForm({
     applyTakenDates(pendingTakenDatesRef.current ?? []);
     pendingTakenDatesRef.current = null;
     setAnalysis(null);
-    if (started > 0) toast(`开始上传 ${started} 个新文件（Live Photo 的照片+视频算一项）`);
+    if (started > 0) toast(t("ef.startToast", { n: started }));
   }
 
   /** 放弃这批：停掉分析（或丢掉待确认结果），什么都不传 */
@@ -1050,10 +1058,10 @@ export function EntryForm({
       if (!dateTouched.current) {
         setDate(latest);
         showDateHint(
-          days > 1 ? `这批文件跨了 ${days} 天（${span}），日期取了最近的一天，可手动改` : `日期已按拍摄时间设为 ${span}`
+          days > 1 ? t("ef.dateSpan", { days, span }) : t("ef.dateSet", { span })
         );
       } else if (latest !== date) {
-        showDateHint(`已保留你选的 ${date.replaceAll("-", ".")}，这批文件拍摄于 ${span}`, latest);
+        showDateHint(t("ef.dateKept", { date: date.replaceAll("-", "."), span }), latest);
       }
     } else if (!dateTouched.current) {
       // 存照片：日期输入框作为「没有拍摄时间的文件」的兜底日期，静默取最近一天
@@ -1136,11 +1144,16 @@ export function EntryForm({
         .reverse()
         .find((x) => x.kind === "photo" && !x.existing && !x.pairVideoKey && x.key !== videoKey);
       if (!target) {
-        setPairHint("前面没有可配对的新照片了");
+        setPairHint(t("ef.noPairTarget"));
         setTimeout(() => setPairHint(""), 3000);
         return prev;
       }
-      setPairHint(`已配对：${target.file?.name ?? "照片"} + ${video.file?.name ?? "视频"}`);
+      setPairHint(
+        t("ef.paired", {
+          photo: target.file?.name ?? t("wd.type.photo"),
+          video: video.file?.name ?? t("wd.rowVideo"),
+        })
+      );
       setTimeout(() => setPairHint(""), 4000);
       return prev.map((x) => (x.key === target.key ? { ...x, pairVideoKey: videoKey } : x.key === videoKey ? { ...x, pairedTo: target.key } : x));
     });
@@ -1213,14 +1226,14 @@ export function EntryForm({
       const failed = fileKeys.filter((k) => upRef.current.get(k)?.status === "error");
       const cancelledN = fileKeys.filter((k) => upRef.current.get(k)?.status === "cancelled").length;
       if (cancelledN > 0) {
-        throw new Error(`有 ${cancelledN} 个文件的上传被取消了：点卡片上的「重传」，或把它们移除后再保存`);
+        throw new Error(t("ef.errCancelled", { n: cancelledN }));
       }
       if (failed.length > 0) {
         const fatalN = failed.filter((k) => upRef.current.get(k)?.fatal).length;
         throw new Error(
           fatalN === failed.length
-            ? `有 ${failed.length} 个文件超过 ${MAX_UPLOAD_LABEL} 上限传不了，把它们移除后再保存（或拆成小段再传）`
-            : `还有 ${failed.length} 个文件没传上去，在卡片上点「重传」`
+            ? t("ef.errFatal", { n: failed.length, max: MAX_UPLOAD_LABEL })
+            : t("ef.errRetry", { n: failed.length })
         );
       }
       if (fileKeys.length > 0) {
@@ -1306,10 +1319,10 @@ export function EntryForm({
             body: JSON.stringify({ ...base, entryDate: d, media }),
           });
           const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error ?? "保存失败了");
+          if (!res.ok) throw new Error(data.error ?? t("ms.saveFail"));
           last = data.entry as EntryDTO;
         }
-        toast(`已按日期分成 ${sorted.length} 页贴好`);
+        toast(t("ef.savedSplit", { n: sorted.length }));
         reset();
         onSaved(last!, true);
         return;
@@ -1327,7 +1340,7 @@ export function EntryForm({
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "保存失败了");
+      if (!res.ok) throw new Error(data.error ?? t("ms.saveFail"));
       // 这次真正入册的文件从「待清理」名单里摘掉：编辑已有条目保存后表单会被关掉，
       // 名单不清空的话，卸载清理会把刚贴进本子的照片当孤儿从服务器上撤下
       const savedIds = new Set(media.map((m) => m.id));
@@ -1336,7 +1349,7 @@ export function EntryForm({
       if (isNew) reset();
       onSaved(data.entry, isNew);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "保存失败了";
+      const msg = e instanceof Error ? e.message : t("ms.saveFail");
       setError(msg);
       toast(msg, "error");
       setPhase("idle");
@@ -1369,7 +1382,7 @@ export function EntryForm({
   // 类型选择卡：手账/照片/语录/信用本表单；大事记/彩蛋选中后由外层换上对应表单
   const typeCards = (
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-      {TYPES.map(({ value, label, icon: Icon, hint }) => (
+      {TYPES.map(({ value, labelKey, icon: Icon, hintKey }) => (
         <button
           key={value}
           type="button"
@@ -1383,8 +1396,8 @@ export function EntryForm({
           )}
         >
           <Icon weight={type === value ? "fill" : "regular"} className={cn("size-6", type === value ? "text-rose-deep" : "text-ink-soft")} />
-          <span className="text-sm font-bold">{label}</span>
-          <span className="text-xs text-ink-soft/80">{hint}</span>
+          <span className="text-sm font-bold">{t(labelKey)}</span>
+          <span className="text-xs text-ink-soft/80">{t(hintKey)}</span>
         </button>
       ))}
     </div>
@@ -1396,9 +1409,7 @@ export function EntryForm({
       <div className="card-paper">
         {typeCards}
         <p className="mt-4 px-1 text-xs leading-relaxed text-ink-soft/80">
-          {type === "milestone"
-            ? "时间轴只放你挑出来的时刻：哪天第一次见面、第一次旅行……手动录入，配上照片和视频，做成里程碑。"
-            : "每个彩蛋有自己的揭晓日期、密码、精选照片和一封信；到日子她凭密码打开，还能在照片上画画留言。"}
+          {type === "milestone" ? t("ef.msIntro") : t("ef.eggIntro")}
         </p>
       </div>
     );
@@ -1420,7 +1431,7 @@ export function EntryForm({
               setDate(e.target.value);
             }}
             disabled={busy}
-            aria-label="日期"
+            aria-label={t("ef.dateAria")}
             className="bg-transparent font-round text-sm tracking-wider outline-none"
           />
         </label>
@@ -1428,7 +1439,7 @@ export function EntryForm({
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="这封信的称呼（可不填）"
+            placeholder={t("ef.letterTitlePh")}
             disabled={busy}
             className="min-w-40 flex-1 rounded-full border border-ink/15 bg-paper px-4 py-2 text-sm outline-none placeholder:text-ink-soft/50 focus:border-rose"
           />
@@ -1436,7 +1447,7 @@ export function EntryForm({
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="给这一页起个标题（可不填）"
+            placeholder={t("board.titlePh")}
             disabled={busy}
             className="min-w-40 flex-1 rounded-full border border-ink/15 bg-paper px-4 py-2 text-sm outline-none placeholder:text-ink-soft/50 focus:border-rose"
           />
@@ -1447,7 +1458,11 @@ export function EntryForm({
           disabled={busy}
           onClick={() => setIsPublic((v) => !v)}
           aria-pressed={isPublic}
-          title={isPublic ? "不登录的访客也能看到这一页（前提是栏目本身开了公开）" : `只有输密码进来的${READER_NAME}能看到这一页`}
+          title={
+            isPublic
+              ? t("ef.visTitlePublic")
+              : t("ef.visTitlePrivate", { reader: READER_NAME })
+          }
           className={cn(
             "flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold transition",
             isPublic
@@ -1456,7 +1471,7 @@ export function EntryForm({
           )}
         >
           {isPublic ? <Eye weight="fill" className="size-4 text-ink" /> : <EyeSlash weight="fill" className="size-4" />}
-          {isPublic ? "访客可见" : `仅${READER_NAME}可见`}
+          {isPublic ? t("wd.visPublic") : t("wd.visPrivate", { reader: READER_NAME })}
         </button>
       </div>
 
@@ -1470,11 +1485,11 @@ export function EntryForm({
               onClick={() => {
                 dateTouched.current = true;
                 setDate(dateSuggest);
-                showDateHint(`日期已改为 ${dateSuggest.replaceAll("-", ".")}`, null, 4000);
+                showDateHint(t("ef.dateChanged", { date: dateSuggest.replaceAll("-", ".") }), null, 4000);
               }}
               className="ml-2 rounded-full bg-rose-soft px-2.5 py-0.5 font-bold text-rose-deep transition hover:opacity-80"
             >
-              改用拍摄日期 {dateSuggest.replaceAll("-", ".")}
+              {t("ef.dateUseTaken", { date: dateSuggest.replaceAll("-", ".") })}
             </button>
           )}
         </p>
@@ -1484,18 +1499,24 @@ export function EntryForm({
       {isQuote ? (
         <div className="mt-5">
           <div className="mb-2.5 flex gap-2">
-            {["她说", "我说", "我们"].map((s) => (
+            {(
+              [
+                ["她说", "ef.speakerShe"],
+                ["我说", "ef.speakerMe"],
+                ["我们", "ef.speakerUs"],
+              ] as const
+            ).map(([value, speakerKey]) => (
               <button
-                key={s}
+                key={value}
                 type="button"
                 disabled={busy}
-                onClick={() => setSpeaker(s)}
+                onClick={() => setSpeaker(value)}
                 className={cn(
                   "rounded-full px-3.5 py-1 text-sm font-bold transition",
-                  speaker === s ? "bg-peach text-ink shadow-sm" : "border border-ink/15 text-ink-soft hover:bg-ink/5"
+                  speaker === value ? "bg-peach text-ink shadow-sm" : "border border-ink/15 text-ink-soft hover:bg-ink/5"
                 )}
               >
-                {s}
+                {t(speakerKey)}
               </button>
             ))}
           </div>
@@ -1503,7 +1524,7 @@ export function EntryForm({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={(e) => indentOnTab(e, setBody)}
-            placeholder="「今天的风好适合牵着手散步」"
+            placeholder={t("ef.quotePh")}
             disabled={busy}
             rows={3}
             className="w-full resize-y rounded-2xl border-2 border-ink/10 bg-paper-warm px-4 py-3 text-[1.05rem] leading-relaxed outline-none placeholder:text-ink-soft/50 focus:border-butter"
@@ -1519,7 +1540,7 @@ export function EntryForm({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => indentOnTab(e, setBody)}
-          placeholder={isLetter ? "展信安。\n\n今天想对你说的话，慢慢写……" : "今天发生了什么值得记住的事…\n\n空一行可以分段，**这样写**会变成粉色重点"}
+          placeholder={isLetter ? t("ef.letterPh") : t("ef.journalPh")}
           disabled={busy}
           rows={isLetter ? 12 : 6}
           className={cn(
@@ -1533,33 +1554,31 @@ export function EntryForm({
       {isLetter && (
         <div className="mt-4 rounded-2xl border border-butter bg-butter/25 px-4 py-3">
           <label className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="font-bold text-ink">什么时候能被拆开：</span>
+            <span className="font-bold text-ink">{t("ef.revealLabel")}</span>
             <input
               type="date"
               value={revealAt}
               onChange={(e) => setRevealAt(e.target.value)}
               disabled={busy}
-              aria-label="拆信日期"
+              aria-label={t("ef.revealDate")}
               className="rounded-full border border-ink/15 bg-paper px-3.5 py-1.5 font-round text-sm tracking-wider outline-none focus:border-rose"
             />
           </label>
-          <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
-            留空 = 存进去马上就能看到；选一个日子（生日、纪念日），那天之前只有你在后台能看到它。
-          </p>
+          <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">{t("ef.revealHint")}</p>
         </div>
       )}
 
       {/* 心情贴纸 */}
       {type === "journal" && (
         <div className="mt-5 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-ink-soft">今天的心情贴纸：</span>
+          <span className="text-sm text-ink-soft">{t("ef.moodLabel")}</span>
           <button
             type="button"
             disabled={busy}
             onClick={() => setMood("")}
             className={cn("rounded-full px-3 py-1 text-xs font-bold transition", mood === "" ? "bg-ink/10" : "text-ink-soft/70 hover:bg-ink/5")}
           >
-            不贴
+            {t("ef.moodNone")}
           </button>
           {STICKER_NAMES.map((name) => (
             <button
@@ -1567,7 +1586,7 @@ export function EntryForm({
               type="button"
               disabled={busy}
               onClick={() => setMood(mood === name ? "" : name)}
-              aria-label={`贴纸 ${name}`}
+              aria-label={t("ef.moodItem", { name })}
               className={cn(
                 "grid size-9 place-items-center rounded-full border-2 transition-all duration-300 ease-spring",
                 mood === name ? "-translate-y-0.5 border-rose bg-rose-soft/60 shadow-sm" : "border-transparent hover:bg-ink/5"
@@ -1603,7 +1622,7 @@ export function EntryForm({
               const files = await filesFromDataTransfer(e.dataTransfer);
               const media = files.filter((f) => !f.name.startsWith("."));
               if (media.length === 0) return;
-              toast(`收到 ${media.length} 个文件，正在准备预览…`);
+              toast(t("ef.dropToast", { n: media.length }));
               await addFiles(media);
             })();
           }}
@@ -1633,24 +1652,24 @@ export function EntryForm({
               className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink/20 px-4 py-5 text-ink-soft transition hover:border-rose hover:bg-rose-soft/30 hover:text-ink"
             >
               <Camera weight="bold" className="size-5" />
-              选照片 / 视频，或直接把文件 / 文件夹拖进这块区域（Live Photo 见下方提示）
+              {t("ef.dropZone")}
             </button>
             <button
               type="button"
               disabled={busy || analysis !== null}
               onClick={() => folderInput.current?.click()}
-              title="选整个文件夹：livp / 同名照片+视频对（IMG_xxx.HEIC + IMG_xxx.MOV）都会自动配对成 Live Photo"
+              title={t("ef.folderTitle")}
               className="flex items-center gap-2 rounded-2xl border-2 border-dashed border-ink/20 px-4 py-5 text-ink-soft transition hover:border-rose hover:bg-rose-soft/30 hover:text-ink"
             >
               <FolderOpen weight="bold" className="size-5" />
-              选文件夹
+              {t("ef.pickFolder")}
             </button>
             {type === "journal" && album.length > 0 && (
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => setShowPicker((v) => !v)}
-                title="把已经传进本子的照片/视频引用到这一页"
+                title={t("ef.fromBookTitle")}
                 className={cn(
                   "flex items-center gap-2 rounded-2xl border-2 px-4 py-5 transition",
                   showPicker
@@ -1659,7 +1678,7 @@ export function EntryForm({
                 )}
               >
                 <Images weight="bold" className="size-5" />
-                从本子里选
+                {t("ef.fromBook")}
               </button>
             )}
           </div>
@@ -1672,7 +1691,7 @@ export function EntryForm({
                     key={p.id}
                     type="button"
                     onClick={() => addFromAlbum(p)}
-                    title={used ? "已经选进这一页了" : (p.caption ?? "贴进这一页")}
+                    title={used ? t("ef.alreadyPicked") : (p.caption ?? t("ef.pasteHere"))}
                     className={cn(
                       "relative overflow-hidden rounded-lg border-2 transition-all duration-200",
                       used ? "border-matcha shadow-md" : "border-transparent opacity-70 hover:opacity-100"
@@ -1680,7 +1699,7 @@ export function EntryForm({
                   >
                     <AlbumPickThumb item={p} />
                     {p.kind === "video" && (
-                      <span className="absolute left-1 top-1 rounded-full bg-ink/55 px-1.5 py-0.5 text-[9px] font-bold text-paper">视频</span>
+                      <span className="absolute left-1 top-1 rounded-full bg-ink/55 px-1.5 py-0.5 text-[9px] font-bold text-paper">{t("wd.rowVideo")}</span>
                     )}
                     {used && (
                       <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-matcha text-ink">
@@ -1693,17 +1712,15 @@ export function EntryForm({
             </div>
           )}
           <p className="mt-2 px-1 text-xs leading-relaxed text-ink-soft/80">
-            {isPhoto && <>「存照片」保存时按每张卡片上的日期自动分成多页：默认取拍摄日期（探测完会自动填上），在卡片上直接改也行；没有拍摄时间的用上方选的日期。</>}
+            {isPhoto && <>{t("ef.photoHint")}</>}
             {!isPhoto && (
               <>
-                Live Photo：iPhone 相册里「存储到文件」只会导出静态图，视频部分会丢——这就是只拿到一个文件的原因。
-                想留住实况：用 AirDrop 发到 Mac，或在 Mac「照片」App 里「文件 → 导出 → 导出未修改的原片」，
-                把同名的一对文件（IMG_xxx.HEIC + IMG_xxx.MOV）一起选进来会自动配对；没有 Mac 就用 iCloud 网页版下载原图。
-                如果导出的是 <strong>.livp</strong>（一个文件里包着照片+视频），直接选进来会自动拆开配对。
+                {t("ef.liveHintA")}
+                <strong>.livp</strong>
+                {t("ef.liveHintB")}
               </>
             )}
-            HEIC 照片上传后自动转成 JPG，哪都能看；视频在电脑上放不了多半是 HEVC 编码，
-            把 iPhone「设置 → 相机 → 格式」改成「兼容性最佳」再拍即可。
+            {t("ef.hevcHint")}
           </p>
           {pairHint && (
             <p className="mt-2 rounded-xl bg-matcha/30 px-4 py-2 text-sm font-bold text-ink">{pairHint}</p>
@@ -1714,7 +1731,7 @@ export function EntryForm({
             <div className="mt-5 rounded-2xl border-2 border-dashed border-rose/40 bg-rose-soft/25 px-4 py-3.5">
               <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-rose-deep">
                 <SpinnerGap className="size-4 animate-spin" />
-                正在分析这批文件（算指纹、查重复）
+                {t("ef.analyzing")}
                 <span className="font-round text-xs tracking-wider text-ink-soft">
                   {analysis.scanned} / {analysis.total}
                 </span>
@@ -1723,7 +1740,7 @@ export function EntryForm({
                   onClick={abortAnalysis}
                   className="ml-auto rounded-full border border-rose-deep/40 px-3 py-1 text-xs font-bold text-rose-deep transition hover:bg-rose-soft"
                 >
-                  取消
+                  {t("action.cancel")}
                 </button>
               </p>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-rose-soft">
@@ -1732,7 +1749,7 @@ export function EntryForm({
                   style={{ width: `${analysis.total ? Math.round((analysis.scanned / analysis.total) * 100) : 0}%` }}
                 />
               </div>
-              <p className="mt-1.5 text-xs text-ink-soft">先不渲染缩略图浏览器就不会卡；分析完你确认了才开始上传</p>
+              <p className="mt-1.5 text-xs text-ink-soft">{t("ef.analyzeHint")}</p>
             </div>
           )}
 
@@ -1740,27 +1757,34 @@ export function EntryForm({
           {analysis?.status === "ready" && (
             <div className="mt-5 rounded-2xl border-2 border-butter bg-butter/25 px-4 py-3.5">
               <p className="text-sm font-bold text-ink">
-                分析好了：这批共 <b className="text-rose-deep">{analysis.total}</b> 项（Live Photo 算一项，{analysis.total >= 100 ? "就是相册里会贴出的张数" : "和相册里的张数一致"}）
+                {t("ef.readyTitleA")}
+                <b className="text-rose-deep">{analysis.total}</b>
+                {t("ef.readyTitleB", {
+                  tail: analysis.total >= 100 ? t("ef.readyTailMany") : t("ef.readyTailFew"),
+                })}
               </p>
               <ul className="mt-1.5 space-y-0.5 text-sm leading-relaxed text-ink-soft">
                 <li>
-                  <b className="text-ink">新增 {analysis.freshN} 项</b>，确认后开始上传
-                  {analysis.oversizeN > 0 && `（另有 ${analysis.oversizeN} 个文件超过 ${MAX_UPLOAD_LABEL} 上限，传不了）`}
+                  <b className="text-ink">{t("ef.readyFresh", { n: analysis.freshN })}</b>
+                  {t("ef.readyFreshTail")}
+                  {analysis.oversizeN > 0 && t("ef.readyOversize", { n: analysis.oversizeN, max: MAX_UPLOAD_LABEL })}
                 </li>
-                {analysis.dupN > 0 && <li>已传过 / 重复 {analysis.dupN} 项：内容和已有的完全一样，默认跳过（确认后在「已传过」标签里看）</li>}
-                {analysis.suspectN > 0 && <li>疑似重复 {analysis.suspectN} 项：名字像但内容不同，默认跳过（想留的在「已传过」标签里点「仍然要传」）</li>}
+                {analysis.dupN > 0 && <li>{t("ef.readyDup", { n: analysis.dupN })}</li>}
+                {analysis.suspectN > 0 && <li>{t("ef.readySuspect", { n: analysis.suspectN })}</li>}
               </ul>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <button type="button" onClick={confirmUpload} className="btn-primary">
                   <UploadSimple weight="bold" className="size-5" />
-                  开始上传{analysis.oversizeN > 0 ? `能传的 ${analysis.freshN} 项` : ` ${analysis.freshN} 项`}
+                  {analysis.oversizeN > 0
+                    ? t("ef.startUploadMany", { n: analysis.freshN })
+                    : t("ef.startUploadN", { n: analysis.freshN })}
                 </button>
                 <button
                   type="button"
                   onClick={abortAnalysis}
                   className="rounded-full border border-ink/15 px-4 py-2 text-sm text-ink-soft transition hover:bg-ink/5"
                 >
-                  不传这批了
+                  {t("ef.abortBatch")}
                 </button>
               </div>
             </div>
@@ -1771,8 +1795,8 @@ export function EntryForm({
             <div className="mt-5 flex gap-2">
               {(
                 [
-                  ["new", `要上传的 ${newPreviewItems.length}`],
-                  ["dup", `已传过 · 重复 ${dupPreviewItems.length}`],
+                  ["new", t("ef.filterNew", { n: newPreviewItems.length })],
+                  ["dup", t("ef.filterDup", { n: dupPreviewItems.length })],
                 ] as const
               ).map(([value, label]) => (
                 <button
@@ -1802,19 +1826,21 @@ export function EntryForm({
                     <div className="relative">
                       {item.dup && (
                         <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-ink/60 px-2 py-0.5 text-[10px] font-bold tracking-[0.12em] text-paper backdrop-blur">
-                          {item.dup.id ? "已传过" : "重复文件"}
+                          {item.dup.id ? t("ef.badgeUploaded") : t("ef.badgeDupFile")}
                         </span>
                       )}
                       {item.dupSuspect && (
                         <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-butter/95 px-2 py-0.5 text-[10px] font-bold tracking-[0.12em] text-ink backdrop-blur">
-                          疑似重复
+                          {t("ef.badgeSuspect")}
                         </span>
                       )}
                       {item.previewBroken ? (
                         <div className="grid aspect-[4/3] place-items-center gap-1.5 rounded-lg bg-ink/5 px-3 text-center text-ink-soft">
                           <VideoCamera weight="duotone" className="size-8" />
                           <span className="text-xs leading-relaxed">
-                            这个浏览器预览不了它{item.hevc || item.existing?.hevc ? "（HEVC 编码）" : ""}，用 iPhone / Mac 打开没问题
+                            {t("ef.videoPreviewFail", {
+                              suffix: item.hevc || item.existing?.hevc ? t("ef.hevcSuffix") : "",
+                            })}
                           </span>
                         </div>
                       ) : (
@@ -1822,7 +1848,7 @@ export function EntryForm({
                       )}
                       {(item.hevc === true || item.existing?.hevc === true) && !item.pairedTo && (
                         <span
-                          title="HEVC 编码：桌面 Chrome / Firefox 可能放不了，iPhone 和 Safari 没问题"
+                          title={t("ef.hevcTitle")}
                           className="absolute bottom-1.5 left-1.5 rounded-full bg-butter/95 px-2 py-0.5 text-[10px] font-bold text-ink"
                         >
                           HEVC
@@ -1830,15 +1856,15 @@ export function EntryForm({
                       )}
                       {item.pairedTo ? (
                         <span className="absolute left-1.5 top-1.5 rounded-full bg-rose-deep px-2 py-0.5 text-[10px] font-bold tracking-[0.15em] text-paper">
-                          LIVE 已配对
+                          {t("ef.livePaired")}
                         </span>
                       ) : (
                         item.file && (
                           <button
                             type="button"
                             onClick={() => pairToNearest(item.key)}
-                            aria-label="与前面的照片配对成 Live Photo"
-                            title="与前面的照片配对成 Live Photo"
+                            aria-label={t("ef.pairBtn")}
+                            title={t("ef.pairBtn")}
                             className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-paper/90 text-rose-deep shadow transition hover:scale-110"
                           >
                             <Link weight="bold" className="size-3.5" />
@@ -1850,12 +1876,12 @@ export function EntryForm({
                     <div className="relative">
                       {item.dup && (
                         <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-ink/60 px-2 py-0.5 text-[10px] font-bold tracking-[0.12em] text-paper backdrop-blur">
-                          {item.dup.id ? "已传过" : "重复文件"}
+                          {item.dup.id ? t("ef.badgeUploaded") : t("ef.badgeDupFile")}
                         </span>
                       )}
                       {item.dupSuspect && (
                         <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-butter/95 px-2 py-0.5 text-[10px] font-bold tracking-[0.12em] text-ink backdrop-blur">
-                          疑似重复
+                          {t("ef.badgeSuspect")}
                         </span>
                       )}
                       {item.previewBroken ? (
@@ -1871,7 +1897,7 @@ export function EntryForm({
                         ) : (
                           <div className="grid aspect-[4/3] place-items-center gap-1.5 rounded-lg bg-ink/5 px-3 text-center text-ink-soft">
                             <ImageSquare weight="duotone" className="size-8" />
-                            <span className="text-xs leading-relaxed">HEIC 照片，这个浏览器显示不了；保存后会自动转成 JPG，哪都能看</span>
+                            <span className="text-xs leading-relaxed">{t("ef.heicFail")}</span>
                           </div>
                         )
                       ) : (
@@ -1897,7 +1923,7 @@ export function EntryForm({
                           onClick={() => unpair(item.key)}
                           className="absolute bottom-1.5 right-1.5 rounded-full bg-paper/90 px-2 py-0.5 text-[10px] font-bold text-ink-soft shadow transition hover:text-rose-deep"
                         >
-                          取消配对
+                          {t("ef.unpair")}
                         </button>
                       )}
                     </div>
@@ -1908,15 +1934,17 @@ export function EntryForm({
                       value={item.userDate ?? item.takenAt ?? date}
                       onChange={(e) => patchItem(item.key, { userDate: e.target.value || undefined })}
                       disabled={busy || Boolean(item.dup) || Boolean(item.dupSuspect)}
-                      aria-label="这张的日期"
-                      title={item.takenAt ? `拍摄于 ${item.takenAt}，可改（保存时按这个日期分页）` : "没有拍摄时间，默认用上方选的日期，可改"}
+                      aria-label={t("ef.dateAria")}
+                      title={item.takenAt ? t("ef.dateTitleTaken", { date: item.takenAt }) : t("ef.dateTitleNone")}
                       className="mt-1.5 rounded-full bg-mist/60 px-2 py-0.5 font-round text-[10px] font-bold tracking-wider text-ink outline-none focus:bg-mist"
                     />
                   )}
                   <input
                     value={item.caption}
                     onChange={(e) => setCaption(item.key, e.target.value)}
-                    placeholder={item.dup ? "已传过，这一页不会带它" : item.dupSuspect ? "疑似重复，默认不会上传" : "写句注释…"}
+                    placeholder={
+                      item.dup ? t("ef.captionDup") : item.dupSuspect ? t("ef.captionSuspect") : t("ef.captionPh")
+                    }
                     disabled={busy || Boolean(item.dup)}
                     className={cn(
                       "w-full rounded-md bg-paper px-2 py-1 font-script text-lg leading-tight outline-none placeholder:font-hand placeholder:text-sm placeholder:text-ink-soft/50",
@@ -1927,37 +1955,39 @@ export function EntryForm({
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 font-round text-[11px] font-bold tracking-wider text-ink-soft">
                       {item.dup.id ? (
                         <>
-                          <span className="rounded-full bg-mist/70 px-1.5 py-0.5 text-ink">已传过</span>
-                          <span>{item.dup.entryDate ? `${item.dup.entryDate.replaceAll("-", ".")} 就在本子里` : "就在本子里"}</span>
-                          <span className="font-normal opacity-70">不会重复上传</span>
+                          <span className="rounded-full bg-mist/70 px-1.5 py-0.5 text-ink">{t("ef.badgeUploaded")}</span>
+                          <span>
+                            {item.dup.entryDate
+                              ? t("ef.dupInBookDate", { date: item.dup.entryDate.replaceAll("-", ".") })
+                              : t("ef.dupInBook")}
+                          </span>
+                          <span className="font-normal opacity-70">{t("ef.dupNoUpload")}</span>
                         </>
                       ) : (
                         <>
-                          <span className="rounded-full bg-mist/70 px-1.5 py-0.5 text-ink">重复文件</span>
-                          <span>和这一批里的「{item.dupBatchName}」一模一样</span>
-                          <span className="font-normal opacity-70">只传一份</span>
+                          <span className="rounded-full bg-mist/70 px-1.5 py-0.5 text-ink">{t("ef.badgeDupFile")}</span>
+                          <span>{t("ef.dupSameAs", { name: item.dupBatchName ?? "" })}</span>
+                          <span className="font-normal opacity-70">{t("ef.dupOneOnly")}</span>
                         </>
                       )}
                     </p>
                   ) : item.dupSuspect ? (
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 font-round text-[11px] font-bold tracking-wider text-ink-soft">
-                      <span className="rounded-full bg-butter/80 px-1.5 py-0.5 text-ink">疑似重复</span>
-                      <span className="font-normal opacity-70">名字像选重复的（内容不同），默认不上传</span>
+                      <span className="rounded-full bg-butter/80 px-1.5 py-0.5 text-ink">{t("ef.badgeSuspect")}</span>
+                      <span className="font-normal opacity-70">{t("ef.suspectDesc")}</span>
                       <button
                         type="button"
                         onClick={() => restoreSuspect(item.key)}
                         disabled={busy}
                         className="shrink-0 rounded-full bg-rose-soft px-2 py-0.5 transition hover:opacity-80"
                       >
-                        仍然要传
+                        {t("ef.suspectKeep")}
                       </button>
                     </p>
                   ) : (
                     <>
                   {item.fromRef && (
-                    <p className="mt-0.5 font-round text-[10px] font-bold tracking-wider text-ink-soft/60">
-                      从本子里选的 · 相册里的原文件不动
-                    </p>
+                    <p className="mt-0.5 font-round text-[10px] font-bold tracking-wider text-ink-soft/60">{t("ef.refNote")}</p>
                   )}
                   {item.file && <UploadChip st={unitUpState(item)} onRetry={() => retryUnit(item)} />}
                     </>
@@ -1966,7 +1996,7 @@ export function EntryForm({
                     type="button"
                     onClick={() => removeItem(item)}
                     disabled={busy}
-                    aria-label="移除"
+                    aria-label={t("ef.remove")}
                     className="absolute -right-2 -top-2 grid size-6 place-items-center rounded-full bg-rose-deep text-paper shadow-md transition hover:scale-110"
                   >
                     <X weight="bold" className="size-3.5" />
@@ -1979,7 +2009,7 @@ export function EntryForm({
           )}
           {shownItems.length < filterBase.length && (
             <p className="mt-3 text-center font-round text-xs font-bold tracking-wider text-ink-soft/70">
-              先显示了 {shownItems.length} 张（共 {filterBase.length} 张），往下滚会继续加载
+              {t("ef.rendered", { shown: shownItems.length, total: filterBase.length })}
             </p>
           )}
         </div>
@@ -1990,10 +2020,10 @@ export function EntryForm({
         <div className="mt-6">
           <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-rose-deep">
             <SpinnerGap className="size-4 animate-spin" />
-            {phase === "uploading" ? "正在传，马上就好…" : "后台上传中，先写描述不用等"}
+            {phase === "uploading" ? t("ef.upPhaseUploading") : t("ef.upPhaseBg")}
             {uploadUnits.length > 0 && (
               <span className="font-round text-xs tracking-wider text-ink-soft">
-                传好 {upStats.done} / {uploadUnits.length} 项
+                {t("ef.upDone", { done: upStats.done, total: uploadUnits.length })}
               </span>
             )}
             {(upStats.waiting > 0 || upStats.uploading > 0) && (
@@ -2002,9 +2032,9 @@ export function EntryForm({
                 onClick={cancelAllUploads}
                 disabled={busy}
                 className="ml-auto rounded-full border border-rose-deep/40 px-3 py-1 text-xs font-bold text-rose-deep transition hover:bg-rose-soft disabled:opacity-50"
-                title="掐断没传完的、把刚传好的也从服务器撤下，整批回到没选之前"
+                title={t("ef.cancelAllTitle")}
               >
-                取消整批上传
+                {t("ef.cancelAllBtn")}
               </button>
             )}
           </div>
@@ -2014,7 +2044,7 @@ export function EntryForm({
             </div>
           )}
           {upStats.error > 0 && (
-            <p className="mt-1.5 text-xs font-bold text-rose-deep">有 {upStats.error} 项没传上去，点卡片上的「重传」就好</p>
+            <p className="mt-1.5 text-xs font-bold text-rose-deep">{t("ef.upFailItems", { n: upStats.error })}</p>
           )}
         </div>
       )}
@@ -2026,19 +2056,19 @@ export function EntryForm({
           {phase === "saving" ? (
             <>
               <SpinnerGap className="size-5 animate-spin" />
-              正在贴进本子…
+              {t("board.savingPaste")}
             </>
           ) : (
             <>
               <Check weight="bold" className="size-5" />
-              {initial ? "保存修改" : "贴进手账"}
+              {initial ? t("ms.saveEdit") : t("board.saveNew")}
             </>
           )}
         </button>
         {initial && onCancel && (
           <button type="button" onClick={onCancel} disabled={busy} className="btn-ghost">
             <ArrowLeft className="size-4" />
-            不改了
+            {t("board.cancel")}
           </button>
         )}
       </div>

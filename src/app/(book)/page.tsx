@@ -21,6 +21,9 @@ import { JournalEntryCard } from "@/components/journal/JournalEntryCard";
 import { Reveal } from "@/components/Reveal";
 import { recordGuestVisitFor } from "@/lib/visitors";
 import { READER_NAME } from "@/lib/reader";
+import { getLocale, tWith } from "@/i18n/server";
+import type { Dict } from "@/i18n";
+import type { Locale } from "@/i18n/config";
 
 /** 洗牌：首页大拍立得和语录便利贴每次进来都随机翻牌 */
 function shuffle<T>(arr: T[]): T[] {
@@ -32,32 +35,41 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-const SECTION_LINKS: { key: SectionKey; href: string; label: string }[] = [
-  { key: "journal", href: "/journal", label: "手账" },
-  { key: "album", href: "/album", label: "相册" },
-  { key: "quotes", href: "/quotes", label: "语录" },
-  { key: "letters", href: "/letters", label: "信箱" },
-  { key: "timeline", href: "/timeline", label: "大事记" },
-  { key: "screenings", href: "/screenings", label: "放映室" },
+const SECTION_LINKS: { key: SectionKey; href: string; labelKey: keyof Dict }[] = [
+  { key: "journal", href: "/journal", labelKey: "nav.tab.journal" },
+  { key: "album", href: "/album", labelKey: "nav.tab.album" },
+  { key: "quotes", href: "/quotes", labelKey: "nav.tab.quotes" },
+  { key: "letters", href: "/letters", labelKey: "nav.tab.letters" },
+  { key: "timeline", href: "/timeline", labelKey: "nav.tab.timeline" },
+  { key: "screenings", href: "/screenings", labelKey: "nav.tab.screenings" },
 ];
 
 /** 访客的落地页：首页没公开时，给一间小小的客厅——一句欢迎话、
  *  公开的栏目门牌、和一扇只有她能开的门 */
-function GuestLanding({ settings, sections }: { settings: ReturnType<typeof getSettings>; sections: Record<SectionKey, boolean> }) {
+function GuestLanding({
+  settings,
+  sections,
+  locale,
+}: {
+  settings: ReturnType<typeof getSettings>;
+  sections: Record<SectionKey, boolean>;
+  locale: Locale;
+}) {
+  const t = (key: keyof Dict, params?: Record<string, string | number>) => tWith(locale, key, params);
   const openSections = SECTION_LINKS.filter((s) => sections[s.key]);
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center py-16 text-center">
       <NightSky />
-      <p className="font-script text-2xl text-rose-deep">{settings.names} 的手账</p>
+      <p className="font-script text-2xl text-rose-deep">{t("home.journalOf", { names: settings.names })}</p>
       <ScribbleTitle title={settings.title} />
       <p className="mt-8 max-w-md text-ink-soft">
-        {settings.guestWelcome?.trim() || "欢迎来我们的小星球做客。这里有一小部分摊开给你看，其余的，是我们俩的悄悄话"}
+        {settings.guestWelcome?.trim() || t("home.guestWelcome")}
       </p>
       {openSections.length > 0 && (
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           {openSections.map((s) => (
             <Link key={s.key} href={s.href} className="btn-ghost">
-              {s.label}
+              {t(s.labelKey)}
               <ArrowRight weight="bold" className="size-3.5" />
             </Link>
           ))}
@@ -66,19 +78,21 @@ function GuestLanding({ settings, sections }: { settings: ReturnType<typeof getS
       <DoodleDivider variant="hearts" className="mt-12 w-28" />
       <Link href="/lock" className="btn-primary mt-10">
         <Lock weight="bold" className="size-4" />
-        {READER_NAME}的专属入口
+        {t("nav.lockAria", { name: READER_NAME })}
       </Link>
-      <p className="mt-4 font-script text-xl text-ink-soft/60">psst. 有密码的人才进得去</p>
+      <p className="mt-4 font-script text-xl text-ink-soft/60">{t("home.psst")}</p>
     </div>
   );
 }
 
 export default async function HomePage() {
   await recordGuestVisitFor("/");
+  const locale = await getLocale();
+  const t = (key: keyof Dict, params?: Record<string, string | number>) => tWith(locale, key, params);
   const [settings, author, reader] = [getSettings(), await isAuthor(), await isReader()];
   const sections = sectionVisibility(settings);
   // 首页没对访客公开：给落地页
-  if (!reader && !sections.home) return <GuestLanding settings={settings} sections={sections} />;
+  if (!reader && !sections.home) return <GuestLanding settings={settings} sections={sections} locale={locale} />;
   const guest = !reader;
 
   // 「最近的一页」只看手账内容（手账页/自由拼贴页）；语录单独取最新的那句。
@@ -118,7 +132,7 @@ export default async function HomePage() {
       <section className="relative grid items-center gap-14 py-8 sm:py-12 lg:min-h-[calc(100dvh-14rem)] lg:grid-cols-[1.05fr_0.95fr]">
         <NightSky />
         <div>
-          <p className="font-script text-2xl text-rose-deep">{settings.names} 的手账</p>
+          <p className="font-script text-2xl text-rose-deep">{t("home.journalOf", { names: settings.names })}</p>
           <ScribbleTitle title={settings.title} />
           <DayCounter startDate={settings.startDate} className="mt-10" />
           <TimeGreeting startDate={settings.startDate} className="mt-4" />
@@ -126,12 +140,12 @@ export default async function HomePage() {
             {sections.album && (
               <Link href="/album" className="btn-primary">
                 <Images weight="fill" className="size-5" />
-                翻翻相册
+                {t("home.ctaAlbum")}
               </Link>
             )}
             {sections.journal && (
               <Link href="/journal" className="btn-ghost">
-                看看手账
+                {t("home.ctaJournal")}
                 <ArrowRight weight="bold" className="size-4" />
               </Link>
             )}
@@ -151,10 +165,10 @@ export default async function HomePage() {
       {/* 最近的一页 */}
       <section className="mt-16 py-8">
         <div className="mb-7 flex items-end justify-between gap-4">
-          <h2 className="text-3xl font-bold">最近的一页</h2>
+          <h2 className="text-3xl font-bold">{t("home.recentTitle")}</h2>
           {sections.journal && (
             <Link href="/journal" className="link-soft text-sm">
-              翻遍整本
+              {t("home.browseAll")}
               <ArrowRight weight="bold" className="size-3.5" />
             </Link>
           )}
@@ -166,10 +180,10 @@ export default async function HomePage() {
         ) : (
           <div className="card-paper flex flex-col items-center gap-4 py-14 text-center">
             <Sticker name="cloud" className="size-12 text-mist" />
-            <p className="text-ink-soft">{reader ? "这本手账还是崭新的，第一页在等你写下" : "能给你看的页面还在准备中"}</p>
+            <p className="text-ink-soft">{reader ? t("home.emptyFresh") : t("home.emptyGuest")}</p>
             {author && (
               <Link href="/write?type=journal" className="btn-primary">
-                去记第一页
+                {t("home.writeFirst")}
               </Link>
             )}
           </div>
@@ -180,9 +194,9 @@ export default async function HomePage() {
       {photos.length > 0 && (
         <section className="mt-8 py-8">
           <div className="mb-7 flex items-end justify-between gap-4">
-            <h2 className="text-3xl font-bold">最近贴上的拍立得</h2>
+            <h2 className="text-3xl font-bold">{t("home.polaroidTitle")}</h2>
             <p className="font-round text-sm tracking-wider text-ink-soft">
-              共 {photoTotal} 张
+              {t("home.photoTotal", { n: photoTotal })}
             </p>
           </div>
           <SnapRail>
@@ -191,7 +205,7 @@ export default async function HomePage() {
                 <PolaroidCard
                   src={p.thumbUrl ?? p.url}
                   caption={p.caption}
-                  alt={p.caption ?? "我们的照片"}
+                  alt={p.caption ?? t("home.photoAlt")}
                   tilt={tiltOf(p.id)}
                   tone={pickOf(p.id, ["rose", "butter", "mist", "peach", "matcha"])}
                   tape="none"

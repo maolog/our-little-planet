@@ -198,6 +198,8 @@ curl -X POST https://你的域名/api/quick \
 | **放映室** `/screenings` | 每一段完整的纪念视频是一场「首映」：片名、导演寄语、首映日期（到日子才能看） |
 | **访客模式** | 每个栏目、每一页都能单独设成「公开」或「仅她可见」，给朋友看一部分，其余是悄悄话 |
 | **深色模式** | 夜晚的小星球：暖调深梅棕的纸；跟随系统，也能手动切换 |
+| **三语切换** | 简体中文 / 繁體中文 / English 一键切换，界面文案、API 错误消息整站跟随；选择存本地，不改 URL、不影响她的链接 |
+| **四套配色** | 玫瑰粉（默认）、樱花、薰衣草、蜜桃四套主题色随时换，和深色模式互不干扰 |
 
 <table>
   <tr>
@@ -272,6 +274,26 @@ npm run dev                  # 打开 http://localhost:3000
 
 ## 部署
 
+### Docker Compose（推荐）
+
+服务器装好 [Docker 与 Compose 插件](https://docs.docker.com/engine/install/) 后：
+
+```bash
+git clone <你的仓库> our-little-planet && cd our-little-planet
+cp .env.example .env && vim .env   # 全部配置写在 .env（AUTH_SECRET、两个口令、OSS、TZ……）
+mkdir -p data && sudo chown -R 1000:1000 data   # 容器内以 uid 1000（node 用户）运行，先让 data/ 可写
+docker compose up -d --build       # 构建镜像并启动
+```
+
+- 镜像分多阶段构建（Next.js standalone 输出），运行层自带 ffmpeg、以非 root 运行，带健康检查；
+- 页面只绑 `127.0.0.1:3000`，外网仍走宿主 Nginx/Caddy 反代 + HTTPS——[`deploy/nginx.conf.example`](deploy/nginx.conf.example) 原样可用，500MB 上传上限等配置不变；
+- **备份还是备份 `data/`**（`journal.db` + `media/`）：它以挂载卷形式进容器，已有的 `data/` 目录放进去就接着用；
+- 日常：升级 `git pull && docker compose up -d --build`，看日志 `docker compose logs -f`，重启 `docker compose restart`；
+- 改 `NEXT_PUBLIC_READER_NAME` / `NEXT_PUBLIC_DEMO_MODE`（构建期内联进页面）要重新 build；其余变量改完 `.env` 后 `docker compose up -d` 即可生效；
+- 示例内容：镜像里不带 `scripts/`，要种子数据就先在本机 `npm run seed` 生成 `data/` 再部署，或直接进 `/write` 自己写。
+
+### 传统部署（pm2 / systemd）
+
 需要一台能跑 Node 20+ 的常驻机器（轻量云服务器即可）：
 
 ```bash
@@ -326,6 +348,7 @@ pm2 start "npm run start" --name journal       # 或用 systemd
 ## 隐私与安全
 
 - **锁是真实的数据门**：没解锁时，任何页面和媒体接口都不返回内容；彩蛋在揭晓日之前连存在都不会暴露。
+- **口令限流**：读者密码 / 作者口令连续输错 10 次，该来源冷却 10 分钟，挡住暴力试探；输对一次即清零，不会误伤真人。
 - `robots.txt` 禁止一切爬虫，页面也带 `noindex`。
 - 照片、视频、数据库都在 `data/`（已在 `.gitignore` 里），不会进 git。
 - 作者会话默认 6 小时过期，在别人手机上登录过后台也不会一直挂着。
@@ -335,6 +358,7 @@ pm2 start "npm run start" --name journal       # 或用 systemd
 
 - **Next.js 16**（App Router + Turbopack）、**React 19**、**Tailwind CSS 4**、**motion**（spring 物理动效，尊重系统「减少动态」设置）
 - **SQLite**（better-sqlite3）单文件数据库，**sharp** 做图片处理，**heic-convert** 解 HEIC，**ffmpeg** 处理音视频，**fflate** 解 ZIP / livp
+- **i18n**：`src/i18n/` 六组字典（common / nav / media / write / home / meta）× 三语；客户端 `useT()`、服务端 `translate()`，语言经 localStorage + cookie 同步，API 错误消息也按语言返回
 - 字体：霞鹜文楷（LXGW WenKai）、Caveat、Baloo 2，全部自托管，国内访问快；图标：Phosphor Icons
 
 视觉语言见 [DESIGN.md](DESIGN.md)：奶油纸底 + 玫瑰粉唯一强调色、拍立得 / 和纸胶带 / 便利贴 / 日期章组件。

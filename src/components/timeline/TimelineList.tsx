@@ -1,3 +1,5 @@
+"use client";
+
 import { FlagBanner, Paperclip } from "@phosphor-icons/react/dist/ssr";
 import type { Milestone } from "@/lib/milestones";
 import { DateStamp } from "@/components/journal/DateStamp";
@@ -8,6 +10,7 @@ import { WashiTape } from "@/components/journal/WashiTape";
 import { EpisodeChip, GradeStamp, gradeOf } from "./EpisodeStamp";
 import { NOTE_TONES, NOTE_COLORS, pickOf, tiltOf } from "@/lib/tilt";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/LocaleProvider";
 
 /** 麻绳：竖着贯穿整页的微垂波浪线（拉满高度），代替原来笔直的胶带中轴 */
 function Rope({ className }: { className?: string }) {
@@ -137,6 +140,7 @@ export function TimelineList({
   startDate: string | null;
   author?: boolean;
 }) {
+  const t = useT();
   return (
     <div className="relative mt-16">
       {/* 麻绳主轴：桌面居中，移动端靠左 */}
@@ -153,7 +157,7 @@ export function TimelineList({
                 <div className="w-64 max-w-full px-3 py-4 text-center sm:w-72">
                   <p className="font-script text-2xl leading-none text-rose-deep">our beginning</p>
                   <p className="mt-1.5 font-round text-xs tracking-[0.25em] text-ink-soft">{startDate.replaceAll("-", ".")}</p>
-                  <p className="mt-3 text-xl font-bold">一切的开始</p>
+                  <p className="mt-3 text-xl font-bold">{t("ms.beginning")}</p>
                   <p className="mt-3 font-script text-xl text-rose/80">♥ forever</p>
                 </div>
               </Stamp>

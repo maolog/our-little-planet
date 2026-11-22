@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { animate, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/LocaleProvider";
 
 function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -10,6 +11,7 @@ function startOfDay(d: Date): number {
 
 /** 在一起 N 天：进场时数字从 0 滚动上来，像日历一页页翻过 */
 export function DayCounter({ startDate, className }: { startDate: string; className?: string }) {
+  const t = useT();
   const days = useMemo(() => {
     const start = new Date(`${startDate}T00:00:00`);
     if (Number.isNaN(start.getTime())) return null;
@@ -34,14 +36,14 @@ export function DayCounter({ startDate, className }: { startDate: string; classN
   return (
     <div className={cn("select-none", className)}>
       <div className="flex flex-wrap items-end gap-2">
-        <span className="pb-2 text-lg text-ink-soft">在一起的第</span>
+        <span className="pb-2 text-lg text-ink-soft">{t("home.days.pre")}</span>
         <span className="font-round text-7xl font-bold leading-none text-rose-deep tabular-nums sm:text-8xl">
           {shown ?? 0}
         </span>
-        <span className="pb-2 text-lg text-ink-soft">天</span>
+        <span className="pb-2 text-lg text-ink-soft">{t("home.days.unit")}</span>
       </div>
       <p className="mt-3 font-script text-2xl text-ink-soft/80">
-        since {startDate.replaceAll("-", ".")} · 每一天都算数
+        {t("home.days.since", { date: startDate.replaceAll("-", ".") })}
       </p>
     </div>
   );

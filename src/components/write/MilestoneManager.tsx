@@ -15,6 +15,7 @@ import { MediaPicker } from "./MediaPicker";
 import { readTakenAt } from "@/lib/media-date";
 import { Sticker, STICKER_NAMES, STICKER_LABELS, type StickerName } from "@/components/journal/Sticker";
 import { shrinkImage, uploadFile, expandLivp, fileFingerprint, lookupFingerprints } from "@/lib/client-upload";
+import { useT } from "@/i18n/LocaleProvider";
 
 export type MilestoneDTO = {
   id: string;
@@ -71,6 +72,7 @@ export function MilestoneForm({
   onAlbumGrow: (item: AlbumPickItem) => void;
 }) {
   const toast = useToast();
+  const t = useT();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [date, setDate] = useState(initial?.date ?? todayStr());
   const [body, setBody] = useState(initial?.body ?? "");
@@ -99,7 +101,7 @@ export function MilestoneForm({
       files = files.filter((f) => !/\.livp$/i.test(f.name));
       const expanded = (await Promise.all(livps.map((f) => expandLivp(f).catch(() => [] as File[])))).flat();
       files = [...files, ...expanded];
-      if (expanded.length > 0) toast(`已拆开 ${livps.length} 个 Live 图，会按「照片+视频」分别上传`);
+      if (expanded.length > 0) toast(t("ms.livpSplit", { n: livps.length }));
     }
     let dupSkipped = 0;
     for (const f of files) {
@@ -139,12 +141,12 @@ export function MilestoneForm({
         onAlbumGrow(item);
         setMediaIds((prev) => [...prev, item.id]);
       } catch (e) {
-        toast(e instanceof Error ? e.message : "没传上去", "error");
+        toast(e instanceof Error ? e.message : t("ms.uploadFail"), "error");
       } finally {
         setUploading((n) => n - 1);
       }
     }
-    if (dupSkipped > 0) toast(`跳过 ${dupSkipped} 个已传过的，已自动勾选本子里那份`);
+    if (dupSkipped > 0) toast(t("ms.dupSkip", { n: dupSkipped }));
     if (uploadInput.current) uploadInput.current.value = "";
     if (folderInput.current) folderInput.current.value = "";
   }
@@ -160,11 +162,11 @@ export function MilestoneForm({
         body: JSON.stringify({ title, body, date, icon: icon || null, mediaIds }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "保存失败了");
-      toast(initial ? "大事记已更新" : "这个时刻记下了");
+      if (!res.ok) throw new Error(data.error ?? t("ms.saveFail"));
+      toast(initial ? t("ms.updated") : t("ms.saved"));
       onSaved();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "保存失败了", "error");
+      toast(e instanceof Error ? e.message : t("ms.saveFail"), "error");
       setBusy(false);
     }
   }
@@ -173,11 +175,11 @@ export function MilestoneForm({
     <form onSubmit={submit} className="card-paper max-w-2xl space-y-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label className="mb-1.5 block text-sm font-bold text-ink-soft">这一天发生了什么</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldCls} placeholder="我们的第一次一起看海" />
+          <label className="mb-1.5 block text-sm font-bold text-ink-soft">{t("ms.title")}</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldCls} placeholder={t("ms.titlePh")} />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-bold text-ink-soft">日期</label>
+          <label className="mb-1.5 block text-sm font-bold text-ink-soft">{t("ms.date")}</label>
           <div className="relative">
             <CalendarBlank className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-soft" />
             <input
@@ -194,23 +196,23 @@ export function MilestoneForm({
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-bold text-ink-soft">多写两句（可不填）</label>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} className={`${fieldCls} resize-y`} placeholder="那天的风、那天的你……" />
+        <label className="mb-1.5 block text-sm font-bold text-ink-soft">{t("ms.body")}</label>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} className={`${fieldCls} resize-y`} placeholder={t("ms.bodyPh")} />
       </div>
 
       <div>
-        <p className="mb-1.5 text-sm font-bold text-ink-soft">挑个图标贴在时间轴上</p>
+        <p className="mb-1.5 text-sm font-bold text-ink-soft">{t("ms.icon")}</p>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => setIcon("")} className={cn("rounded-full px-3 py-1 text-xs font-bold transition", icon === "" ? "bg-ink/10" : "text-ink-soft/70 hover:bg-ink/5")}>
-            不挑
+            {t("ms.iconNone")}
           </button>
           {STICKER_NAMES.map((name) => (
             <button
               key={name}
               type="button"
               onClick={() => setIcon(name)}
-              aria-label={STICKER_LABELS[name]}
-              title={STICKER_LABELS[name]}
+              aria-label={t(STICKER_LABELS[name])}
+              title={t(STICKER_LABELS[name])}
               className={cn(
                 "grid size-9 place-items-center rounded-full border-2 transition-all duration-300 ease-spring",
                 icon === name ? "-translate-y-0.5 border-rose bg-rose-soft/60 shadow-sm" : "border-transparent hover:bg-ink/5"
@@ -224,7 +226,7 @@ export function MilestoneForm({
 
       <div>
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-bold text-ink-soft">配的照片 / 视频（已选 {mediaIds.length} 个，按点击顺序展示）</p>
+          <p className="text-sm font-bold text-ink-soft">{t("ms.media", { n: mediaIds.length })}</p>
           <button
             type="button"
             onClick={() => uploadInput.current?.click()}
@@ -232,20 +234,20 @@ export function MilestoneForm({
             className="btn-ghost gap-1.5 rounded-full px-3 py-1.5 text-xs"
           >
             {uploading > 0 ? <SpinnerGap className="size-3.5 animate-spin" /> : <UploadSimple weight="bold" className="size-3.5" />}
-            {uploading > 0 ? `上传中 ×${uploading}` : "直接上传新的"}
+            {uploading > 0 ? t("ms.uploading", { n: uploading }) : t("ms.uploadNew")}
           </button>
           <button
             type="button"
             onClick={() => folderInput.current?.click()}
             disabled={uploading > 0}
-            title="选整个文件夹批量上传"
+            title={t("ms.folderTitle")}
             className="btn-ghost gap-1.5 rounded-full px-3 py-1.5 text-xs"
           >
             <FolderOpen weight="bold" className="size-3.5" />
-            文件夹
+            {t("ms.folder")}
           </button>
         </div>
-        <MediaPicker items={album} selected={mediaIds} onToggle={toggle} emptyHint="相册还空着，可以用下面按钮直接上传" />
+        <MediaPicker items={album} selected={mediaIds} onToggle={toggle} emptyHint={t("ms.emptyAlbum")} />
         <input ref={uploadInput} type="file" accept="image/*,video/*,.livp" multiple hidden onChange={(e) => void uploadNew(e.target.files)} />
         <input
           ref={folderInput}
@@ -260,11 +262,11 @@ export function MilestoneForm({
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={busy} className="btn-primary">
           {busy ? <SpinnerGap className="size-5 animate-spin" /> : <Check weight="bold" className="size-5" />}
-          {initial ? "保存修改" : "记下这个时刻"}
+          {initial ? t("ms.saveEdit") : t("ms.saveNew")}
         </button>
         <button type="button" onClick={onCancel} className="btn-ghost">
           <X className="size-4" />
-          取消
+          {t("action.cancel")}
         </button>
       </div>
     </form>

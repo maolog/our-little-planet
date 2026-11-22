@@ -9,14 +9,20 @@ import { EggExperience } from "@/components/someday/EggExperience";
 import { Sticker } from "@/components/journal/Sticker";
 import { DoodleDivider } from "@/components/journal/DoodleDivider";
 import { recordGuestVisitFor } from "@/lib/visitors";
+import { getLocale, tWith } from "@/i18n/server";
+import type { Dict } from "@/i18n";
 
-export const metadata: Metadata = { title: "Someday" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: tWith(await getLocale(), "meta.someday") };
+}
 
 /** 单个彩蛋：独立于手账总锁——只凭「揭晓日期 + 彩蛋密码」就能打开，
  *  链接发给她后不需要再输本子的读者密码 */
 export default async function EggPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await recordGuestVisitFor(`/someday/${id}`);
+  const locale = await getLocale();
+  const t = (key: keyof Dict, params?: Record<string, string | number>) => tWith(locale, key, params);
   const egg = getEgg(id);
   if (!egg) notFound();
 
@@ -25,8 +31,8 @@ export default async function EggPage({ params }: { params: Promise<{ id: string
     return (
       <main className="relative flex min-h-dvh flex-col items-center justify-center px-4 py-16 text-center">
         <div className="card-paper max-w-sm px-8 py-12">
-          <h1 className="text-2xl font-bold">还没到打开的时候</h1>
-          <p className="mt-4 leading-relaxed text-ink-soft">这一页藏着一个礼物，它在等一个特别的日子。</p>
+          <h1 className="text-2xl font-bold">{t("egg.notYet")}</h1>
+          <p className="mt-4 leading-relaxed text-ink-soft">{t("egg.oneGift")}</p>
           <DoodleDivider variant="wave" className="mx-auto mt-8" />
           <p className="mt-6 font-script text-2xl text-ink-soft/70">come back someday</p>
         </div>

@@ -3,6 +3,7 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { Envelope } from "./Envelope";
 import { LetterView, type LetterData } from "./LetterView";
+import { useT } from "@/i18n/LocaleProvider";
 
 const READ_KEY = "journal-read-letters";
 const EMPTY = new Set<string>();
@@ -33,6 +34,7 @@ export function LetterWall({
   letters: (LetterData & { index: number })[];
   author: boolean;
 }) {
+  const t = useT();
   // SSR 时按空集渲染（全部未读），挂载后自动切到本机记录
   const readIds = useSyncExternalStore(subscribe, getReadSnapshot, () => EMPTY);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export function LetterWall({
     <div>
       {ordered.length > 1 && (
         <p className="mb-10 text-center font-round text-sm tracking-widest text-ink-soft">
-          共 {ordered.length} 封 · {unreadCount > 0 ? `${unreadCount} 封还没拆开` : "每一封都拆过了"}
+          {t("letter.count", { n: ordered.length })} · {unreadCount > 0 ? t("letter.unread", { n: unreadCount }) : t("letter.allRead")}
         </p>
       )}
       <div
