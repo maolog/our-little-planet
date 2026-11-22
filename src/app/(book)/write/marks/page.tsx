@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ChatTeardropText, EnvelopeSimple, Notebook } from "@phosphor-icons/react/dist/ssr";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { recordGuestVisitFor } from "@/lib/visitors";
 import { listReplies, listSeens } from "@/lib/marks";
 import { PenGate } from "@/components/write/PenGate";
@@ -39,10 +39,10 @@ function entryHref(type: string, entryId: string, entryDate: string): string {
   return `/journal?date=${entryDate}`;
 }
 
-/** 她的痕迹：她盖过的已阅印章、页脚寄回来的评论（文字/表情/图），只有作者能进这一页 */
+/** 她的痕迹：她盖过的已阅印章、页脚寄回来的评论（文字/表情/图），解锁本子的两人都能进这一页 */
 export default async function MarksPage() {
   await recordGuestVisitFor("/write/marks");
-  if (!(await isAuthor())) return <PenGate />;
+  if (!(await isReader())) return <PenGate />;
   const locale = await getLocale();
   const t: T = (key, params) => tWith(locale, key, params);
   const [replies, seens] = [listReplies(), listSeens()];

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { completeMediaUpload, publicMedia } from "@/lib/media";
 
 export const runtime = "nodejs";
@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 
 /** 上传第三步（作者）：文件已就位（OSS 或本地），登记入库并返回 media 信息 */
 export async function POST(req: Request) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const body = (await req.json().catch(() => null)) as
     | { mediaId?: string; key?: string; mime?: string; bytes?: number; width?: number; height?: number; hevc?: boolean | null; duration?: number | null; asset?: boolean; sticker?: boolean; fingerprint?: string | null }

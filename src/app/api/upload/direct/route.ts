@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { MAX_UPLOAD_BYTES, isAcceptedFile, normalizeMime, saveLocalDirect } from "@/lib/media";
 import { storageMode } from "@/lib/storage";
 
@@ -13,8 +13,8 @@ export async function PUT(req: Request) {
   if (storageMode() === "oss") {
     return NextResponse.json({ error: "OSS 模式下请直传 OSS" }, { status: 400 });
   }
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const url = new URL(req.url);
   const mediaId = url.searchParams.get("mediaId") ?? "";

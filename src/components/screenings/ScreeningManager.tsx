@@ -76,7 +76,7 @@ function AlbumPicker({
 }
 
 /** 排片表单：完整视频（新上传或从本子里选）+ 片名 + 寄语 + 首映日期 + 可选封面 */
-function ScreeningForm({
+export function ScreeningForm({
   album,
   editing,
   onSaved,

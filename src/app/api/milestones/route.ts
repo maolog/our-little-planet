@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { createMilestone, listMilestones } from "@/lib/milestones";
 
 export const runtime = "nodejs";
@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 /** 大事记管理（作者）：列表 + 新增 */
 
 export async function GET() {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const milestones = listMilestones();
   return NextResponse.json({
@@ -25,8 +25,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ error: "参数不对" }, { status: 400 });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { listAllTags, upsertTags } from "@/lib/tagStore";
 
 export const runtime = "nodejs";
@@ -7,15 +7,15 @@ export const dynamic = "force-dynamic";
 
 /** 全局标签库（作者）：输入回车就入库，所有选标签的地方都能选到 */
 export async function GET() {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   return NextResponse.json({ tags: listAllTags() });
 }
 
 export async function POST(req: Request) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const body = (await req.json().catch(() => null)) as { name?: unknown } | null;
   const name = typeof body?.name === "string" ? body.name : "";

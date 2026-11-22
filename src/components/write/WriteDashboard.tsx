@@ -42,6 +42,8 @@ import { TagDropdown } from "./TagDropdown";
 import { Lightbox, type LightboxPhoto } from "@/components/album/Lightbox";
 import { EggForm, isEggArrived, type EggDTO } from "./EggManager";
 import { MilestoneForm, type AlbumPickItem, type MilestoneDTO } from "./MilestoneManager";
+import { ScreeningForm } from "@/components/screenings/ScreeningManager";
+import type { Screening } from "@/lib/screenings";
 import { READER_NAME } from "@/lib/reader";
 import { useT } from "@/i18n/LocaleProvider";
 import type { Dict } from "@/i18n/dict";
@@ -64,6 +66,7 @@ const FILTERS = [
   { value: "quote", labelKey: "wd.filter.quote" },
   { value: "letter", labelKey: "wd.filter.letter" },
   { value: "milestone", labelKey: "wd.filter.milestone" },
+  { value: "screening", labelKey: "wd.filter.screening" },
   { value: "egg", labelKey: "wd.filter.egg" },
 ] as const;
 type FilterValue = (typeof FILTERS)[number]["value"];
@@ -72,12 +75,13 @@ type FilterValue = (typeof FILTERS)[number]["value"];
 type Row =
   | { t: "entry"; kind: FilterValue; date: string; entry: EntryDTO }
   | { t: "milestone"; kind: "milestone"; date: string; milestone: MilestoneDTO }
+  | { t: "screening"; kind: "screening"; date: string; screening: Screening }
   | { t: "egg"; kind: "egg"; date: string; egg: EggDTO };
 
 type Tab = "write" | "list" | "settings";
 const TAB_KEYS: Tab[] = ["write", "list", "settings"];
 /** /write?type=photo 从各菜单页的添加按钮直达对应新增模块 */
-const TYPE_KEYS: FormKind[] = ["journal", "photo", "quote", "letter", "milestone", "egg"];
+const TYPE_KEYS: FormKind[] = ["journal", "photo", "quote", "letter", "milestone", "screening", "egg"];
 
 /** 列表行左侧的缩略图：有照片/视频就显示首图，没有就退回类型图标 */
 function ListThumb({ entry, meta }: { entry: EntryDTO; meta: { labelKey: DictKey; icon: typeof Notebook; cls: string } }) {
@@ -386,9 +390,11 @@ function MediaManager({
 
 function DashboardInner({
   initialEntries,
+  canManage,
   settings,
   initialEggs,
   initialMilestones,
+  initialScreenings,
   album,
   allTags: initialTagLib,
   initialType: initialTypeRaw,
@@ -397,9 +403,14 @@ function DashboardInner({
   editId,
 }: {
   initialEntries: EntryDTO[];
-  settings: SiteSettings;
+  /** 能不能进「本子信息」等管理区：他（作者口令）能，她（读者密码）不能 */
+  canManage: boolean;
+  /** 只在能进管理区时才从服务端传下来（不进读者的 RSC payload） */
+  settings?: SiteSettings;
   initialEggs: EggDTO[];
   initialMilestones: MilestoneDTO[];
+  /** 排片（纪念视频首映）：两人都能发，列表里都能改 */
+  initialScreenings: Screening[];
   album: AlbumPickItem[];
   /** 全局标签库（任何地方输入过的标签都在这儿） */
   allTags: string[];
@@ -413,11 +424,15 @@ function DashboardInner({
   const toast = useToast();
   const t = useT();
   // ?type=quote 直达对应新增模块（含大事记 / 彩蛋）
-  const initialType = TYPE_KEYS.includes(initialTypeRaw as FormKind) ? (initialTypeRaw as FormKind) : undefined;
-  const initialTab = TAB_KEYS.includes(initialTabRaw as Tab) ? (initialTabRaw as Tab) : "write";
+  // 彩蛋只有他能建：直达链接对她退成普通写作
+  const initialType =
+    TYPE_KEYS.includes(initialTypeRaw as FormKind) && (initialTypeRaw !== "egg" || canManage) ? (initialTypeRaw as FormKind) : undefined;
+  const initialTab =
+    TAB_KEYS.includes(initialTabRaw as Tab) && (initialTabRaw !== "settings" || canManage) ? (initialTabRaw as Tab) : "write";
   const [tab, setTab] = useState<Tab>(initialTab);
   const [entries, setEntries] = useState<EntryDTO[]>(initialEntries);
   const [milestones, setMilestones] = useState<MilestoneDTO[]>(initialMilestones);
+  const [screenings, setScreenings] = useState<Screening[]>(initialScreenings);
   const [eggs, setEggs] = useState<EggDTO[]>(initialEggs);
   const [albumItems, setAlbumItems] = useState(album);
   // 新建手账页的两种写法：文字表单 / 自由拼贴画板（只在选「手账页」时出现）
@@ -426,15 +441,18 @@ function DashboardInner({
   // 保存过一页后让新建画板 / 大事记 / 彩蛋表单重置成空白
   const [boardSeq, setBoardSeq] = useState(0);
   const [milestoneSeq, setMilestoneSeq] = useState(0);
+  const [screeningSeq, setScreeningSeq] = useState(0);
   const [eggSeq, setEggSeq] = useState(0);
   // ?edit=id 时直接进入编辑（惰性初始化，避免 effect 里 setState）
   const [editing, setEditing] = useState<EntryDTO | null>(() =>
     editId ? (initialEntries.find((e) => e.id === editId) ?? null) : null
   );
   const [editingMilestone, setEditingMilestone] = useState<MilestoneDTO | null>(null);
+  const [editingScreening, setEditingScreening] = useState<Screening | null>(null);
   const [editingEgg, setEditingEgg] = useState<EggDTO | null>(null);
-  // 本子里的一切：筛选（?filter= 服务端读好传进来）
-  const [filter, setFilter] = useState<FilterValue>((FILTERS.some((f) => f.value === initialFilterRaw) ? initialFilterRaw : "all") as FilterValue);
+  // 本子里的一切：筛选（?filter= 服务端读好传进来；她看不到彩蛋这一栏）
+  const filterAllowed = FILTERS.some((f) => f.value === initialFilterRaw) && (initialFilterRaw !== "egg" || canManage);
+  const [filter, setFilter] = useState<FilterValue>((filterAllowed ? initialFilterRaw : "all") as FilterValue);
   // 批量设置公开性：勾一排历史内容一次放开/收回（照片是按张管理的，批量去「全部」里勾照片页）
   const [batch, setBatch] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -453,13 +471,15 @@ function DashboardInner({
   }, [tab, filter]);
 
   const refreshAll = useCallback(async () => {
-    const [e, m, g] = await Promise.all([
+    const [e, m, s, g] = await Promise.all([
       fetch("/api/entries").then((r) => (r.ok ? r.json() : null)).catch(() => null),
       fetch("/api/milestones").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch("/api/screenings").then((r) => (r.ok ? r.json() : null)).catch(() => null),
       fetch("/api/eggs").then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]);
     if (e) setEntries(e.entries as EntryDTO[]);
     if (m) setMilestones(m.milestones as MilestoneDTO[]);
+    if (s) setScreenings(s.screenings as Screening[]);
     if (g) setEggs(g.eggs as EggDTO[]);
   }, []);
 
@@ -516,6 +536,41 @@ function DashboardInner({
     setEggSeq((s) => s + 1);
     setTab("list");
     void refreshAll();
+  }
+
+  function onScreeningSaved() {
+    setEditingScreening(null);
+    setScreeningSeq((s) => s + 1);
+    setTab("list");
+    void refreshAll();
+  }
+
+  /** 排片的同一枚公开开关：这场首映对访客公开 / 仅她可见 */
+  async function toggleScreeningVisibility(s: Screening) {
+    const next = s.visibility === "public" ? "private" : "public";
+    const res = await fetch(`/api/screenings/${s.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: next }),
+    }).catch(() => null);
+    if (res && res.ok) {
+      setScreenings((prev) => prev.map((x) => (x.id === s.id ? { ...x, visibility: next } : x)));
+      toast(next === "public" ? t("wd.visScrPublic") : t("wd.visScrPrivate", { reader: READER_NAME }));
+    } else {
+      toast(t("wd.visFail"), "error");
+    }
+  }
+
+  async function onDeleteScreening(s: Screening) {
+    if (!window.confirm(t("wd.delScrConfirm", { title: s.title }))) return;
+    const res = await fetch(`/api/screenings/${s.id}`, { method: "DELETE" }).catch(() => null);
+    if (res && res.ok) {
+      setScreenings((prev) => prev.filter((x) => x.id !== s.id));
+      if (editingScreening?.id === s.id) setEditingScreening(null);
+      toast(t("wd.delScrOk"));
+    } else {
+      toast(t("wd.delFail"), "error");
+    }
   }
 
   async function onDeleteEntry(entry: EntryDTO) {
@@ -575,7 +630,8 @@ function DashboardInner({
 
   /** 一键把当前筛选下能勾的行全部勾上/清空 */
   function pickAllVisible(visible: Row[]) {
-    const ids = visible.filter((r) => r.t !== "egg").map((r) => (r.t === "entry" ? r.entry.id : r.milestone.id));
+    // 批量只勾条目和大事记（排片/彩蛋不参与批量公开设置）
+    const ids = visible.filter((r) => r.t === "entry" || r.t === "milestone").map((r) => (r.t === "entry" ? r.entry.id : r.milestone.id));
     setPicked((prev) => {
       const next = new Set(prev);
       const allOn = ids.every((id) => next.has(id));
@@ -654,6 +710,7 @@ function DashboardInner({
   function goEditEntry(entry: EntryDTO) {
     setEditing(entry);
     setEditingMilestone(null);
+    setEditingScreening(null);
     setEditingEgg(null);
     setTab("write");
     window.scrollTo({ top: 0 });
@@ -662,6 +719,16 @@ function DashboardInner({
   function goEditMilestone(m: MilestoneDTO) {
     setEditingMilestone(m);
     setEditing(null);
+    setEditingScreening(null);
+    setEditingEgg(null);
+    setTab("write");
+    window.scrollTo({ top: 0 });
+  }
+
+  function goEditScreening(s: Screening) {
+    setEditingScreening(s);
+    setEditing(null);
+    setEditingMilestone(null);
     setEditingEgg(null);
     setTab("write");
     window.scrollTo({ top: 0 });
@@ -671,25 +738,27 @@ function DashboardInner({
     setEditingEgg(egg);
     setEditing(null);
     setEditingMilestone(null);
+    setEditingScreening(null);
     setTab("write");
     window.scrollTo({ top: 0 });
   }
 
-  // 统一列表：条目 + 大事记 + 彩蛋，按日期倒序
+  // 统一列表：条目 + 大事记 + 排片 + 彩蛋，按日期倒序
   const rows = useMemo<Row[]>(() => {
     const all: Row[] = [
       ...entries.map((e) => ({ t: "entry" as const, kind: (e.type === "board" ? "journal" : e.type) as FilterValue, date: e.entry_date, entry: e })),
       ...milestones.map((m) => ({ t: "milestone" as const, kind: "milestone" as const, date: m.date, milestone: m })),
+      ...screenings.map((s) => ({ t: "screening" as const, kind: "screening" as const, date: s.premiereAt, screening: s })),
       ...eggs.map((g) => ({ t: "egg" as const, kind: "egg" as const, date: g.revealDate, egg: g })),
     ];
     return all.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  }, [entries, milestones, eggs]);
+  }, [entries, milestones, screenings, eggs]);
   const visibleRows = filter === "all" ? rows : rows.filter((r) => r.kind === filter);
 
   // 本子里用过的标签：表单里「常用」建议用（全局标签库，随输入/删除实时变）
   const [tagLib, setTagLib] = useState(initialTagLib);
 
-  const editingSomething = editing || editingMilestone || editingEgg;
+  const editingSomething = editing || editingMilestone || editingScreening || editingEgg;
 
   return (
     <div className="mx-auto max-w-3xl py-10">
@@ -705,10 +774,13 @@ function DashboardInner({
       <div className="mt-7 flex gap-2 overflow-x-auto no-scrollbar">
         {(
           [
-            { value: "write", label: editingSomething ? t("wd.tabEdit") : t("wd.tabWrite"), icon: PencilSimple, cls: "bg-rose-soft text-rose-deep" },
-            { value: "list", label: t("wd.tabAll"), icon: Stack, cls: "bg-mist text-ink" },
-            { value: "settings", label: t("wd.tabSettings"), icon: GearSix, cls: "bg-butter text-ink" },
-          ] as const
+            { value: "write" as Tab, label: editingSomething ? t("wd.tabEdit") : t("wd.tabWrite"), icon: PencilSimple, cls: "bg-rose-soft text-rose-deep" },
+            { value: "list" as Tab, label: t("wd.tabAll"), icon: Stack, cls: "bg-mist text-ink" },
+            // 「本子信息」只有他能进（她只写内容，不改本子设置）
+            ...(canManage
+              ? [{ value: "settings" as Tab, label: t("wd.tabSettings"), icon: GearSix, cls: "bg-butter text-ink" }]
+              : []),
+          ]
         ).map(({ value, label, icon: Icon, cls }) => (
           <button
             key={value}
@@ -723,7 +795,7 @@ function DashboardInner({
             {label}
           </button>
         ))}
-        {/* 她盖过的章、寄回来的话：单独一页，只有作者能进 */}
+        {/* 她盖过的章、寄回来的话：单独一页，两人都能进 */}
         <Link
           href="/write/marks"
           className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose-soft px-4 py-2 text-sm font-bold text-rose-deep transition-all duration-300 ease-spring hover:-translate-y-px"
@@ -731,22 +803,26 @@ function DashboardInner({
           <HeartStraight weight="fill" className="size-4" />
           {t("wd.marks")}
         </Link>
-        {/* 访客记录：谁（IP/城市）什么时候来逛过 */}
-        <Link
-          href="/write/visitors"
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-mist px-4 py-2 text-sm font-bold text-ink transition-all duration-300 ease-spring hover:-translate-y-px"
-        >
-          <GlobeHemisphereWest weight="fill" className="size-4" />
-          {t("wd.visitors")}
-        </Link>
-        {/* 放映室排片：纪念视频的首映管理 */}
-        <Link
-          href="/write/screenings"
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-butter px-4 py-2 text-sm font-bold text-ink transition-all duration-300 ease-spring hover:-translate-y-px"
-        >
-          <FilmSlate weight="fill" className="size-4" />
-          {t("wd.screenings")}
-        </Link>
+        {canManage && (
+          <>
+            {/* 访客记录：谁（IP/城市）什么时候来逛过 —— 隐私统计，只有他能看 */}
+            <Link
+              href="/write/visitors"
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-mist px-4 py-2 text-sm font-bold text-ink transition-all duration-300 ease-spring hover:-translate-y-px"
+            >
+              <GlobeHemisphereWest weight="fill" className="size-4" />
+              {t("wd.visitors")}
+            </Link>
+            {/* 放映室排片管理：首映的增删改与公开设置，只有他能进（她在写作台发新片） */}
+            <Link
+              href="/write/screenings"
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-butter px-4 py-2 text-sm font-bold text-ink transition-all duration-300 ease-spring hover:-translate-y-px"
+            >
+              <FilmSlate weight="fill" className="size-4" />
+              {t("wd.screenings")}
+            </Link>
+          </>
+        )}
       </div>
 
       <div className="mt-7">
@@ -768,7 +844,7 @@ function DashboardInner({
                   onCancel={() => setEditing(null)}
                 />
               ) : (
-                <EntryForm key={editing.id} initial={editing} album={albumItems} knownTags={tagLib} onTagDelete={(t) => void deleteTagGlobally(t)} onSaved={onSaved} onCancel={() => setEditing(null)} />
+                <EntryForm key={editing.id} initial={editing} album={albumItems} knownTags={tagLib} canManage={canManage} onTagDelete={(t) => void deleteTagGlobally(t)} onSaved={onSaved} onCancel={() => setEditing(null)} />
               )}
             </div>
           ) : editingMilestone ? (
@@ -780,6 +856,16 @@ function DashboardInner({
                 onSaved={onMilestoneSaved}
                 onCancel={() => setEditingMilestone(null)}
                 onAlbumGrow={(item) => setAlbumItems((prev) => [item, ...prev])}
+              />
+            </div>
+          ) : editingScreening ? (
+            <div className="space-y-4">
+              <p className="text-sm text-ink-soft">{t("wd.editingScreen", { title: editingScreening.title })}</p>
+              <ScreeningForm
+                album={albumItems}
+                editing={editingScreening}
+                onSaved={onScreeningSaved}
+                onCancel={() => setEditingScreening(null)}
               />
             </div>
           ) : editingEgg ? (
@@ -817,7 +903,7 @@ function DashboardInner({
               )}
               {/* 文字表单（含 6 张类型卡）；两个都保持挂载、按需显隐：切来切去不丢草稿 */}
               <div className={pageMode === "board" ? "hidden" : undefined}>
-                <EntryForm onSaved={onSaved} onTypeChange={setFormType} type={formType} album={albumItems} knownTags={tagLib} onTagDelete={(t) => void deleteTagGlobally(t)} />
+                <EntryForm onSaved={onSaved} onTypeChange={setFormType} type={formType} album={albumItems} knownTags={tagLib} canManage={canManage} onTagDelete={(t) => void deleteTagGlobally(t)} />
               </div>
               {/* 大事记 / 彩蛋表单（类型卡选到它们时出现） */}
               {pageMode === "form" && formType === "milestone" && (
@@ -828,6 +914,9 @@ function DashboardInner({
                   onCancel={() => setFormType("journal")}
                   onAlbumGrow={(item) => setAlbumItems((prev) => [item, ...prev])}
                 />
+              )}
+              {pageMode === "form" && formType === "screening" && (
+                <ScreeningForm key={screeningSeq} album={albumItems} onSaved={onScreeningSaved} onCancel={() => setFormType("journal")} />
               )}
               {pageMode === "form" && formType === "egg" && (
                 <EggForm key={eggSeq} album={albumItems} onSaved={onEggSaved} onCancel={() => setFormType("journal")} />
@@ -842,7 +931,7 @@ function DashboardInner({
           <div className="space-y-4">
             <p className="px-1 text-sm leading-relaxed text-ink-soft">{t("wd.listIntro")}</p>
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              {FILTERS.map(({ value, labelKey }) => {
+              {FILTERS.filter(({ value }) => value !== "egg" || canManage).map(({ value, labelKey }) => {
                 const n = value === "all" ? rows.length : value === "photo" ? albumItems.length : rows.filter((r) => r.kind === value).length;
                 return (
                   <button
@@ -881,7 +970,7 @@ function DashboardInner({
                   className="flex items-center gap-1.5 rounded-full border border-ink/15 px-3.5 py-1.5 text-sm font-bold text-ink-soft transition hover:bg-ink/5 hover:text-ink"
                 >
                   {(() => {
-                    const ids = visibleRows.filter((r) => r.t !== "egg").map((r) => (r.t === "entry" ? r.entry.id : r.milestone.id));
+                    const ids = visibleRows.filter((r) => r.t === "entry" || r.t === "milestone").map((r) => (r.t === "entry" ? r.entry.id : r.milestone.id));
                     const allOn = ids.length > 0 && ids.every((id) => picked.has(id));
                     return allOn ? <CheckCircle weight="fill" className="size-4 text-rose-deep" /> : <Circle className="size-4" />;
                   })()}
@@ -1099,6 +1188,59 @@ function DashboardInner({
                   </div>
                 );
               }
+              if (row.t === "screening") {
+                const s = row.screening;
+                return (
+                  <div key={s.id}>
+                    <div className="card-paper flex items-center gap-4 px-5 py-4">
+                      <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-mist text-ink">
+                        <FilmSlate weight="fill" className="size-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-bold">{s.title}</p>
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-round text-xs tracking-wider text-ink-soft">
+                          <span>
+                            {s.premiereAt.replaceAll("-", ".")}{s.subtitle ? ` · ${s.subtitle}` : ""}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void toggleScreeningVisibility(s)}
+                            title={s.visibility === "public" ? t("wd.visTitlePublic") : t("wd.visTitlePrivate", { reader: READER_NAME })}
+                            className={cn(
+                              "rounded-full px-2 py-0.5 font-bold transition",
+                              s.visibility === "public" ? "bg-matcha/50 text-ink" : "bg-ink/8 text-ink-soft"
+                            )}
+                          >
+                            {s.visibility === "public" ? t("wd.visPublic") : t("wd.visPrivate", { reader: READER_NAME })}
+                          </button>
+                        </p>
+                        {s.createdAt && (
+                          <p className="mt-1 font-round text-[10px] tracking-wider text-ink-soft/60">
+                            {t("wd.created", { time: fmtCST(s.createdAt) })}
+                            {s.updatedAt && s.updatedAt !== s.createdAt && t("wd.updated", { time: fmtCST(s.updatedAt) })}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => goEditScreening(s)}
+                        aria-label={t("action.edit")}
+                        className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink"
+                      >
+                        <PencilSimple className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void onDeleteScreening(s)}
+                        aria-label={t("action.delete")}
+                        className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep"
+                      >
+                        <TrashSimple className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
               const g = row.egg;
               const doodleCount = Object.values(g.doodles ?? {}).reduce((a, b) => a + b, 0);
               return (
@@ -1166,7 +1308,7 @@ function DashboardInner({
           </div>
         )}
 
-        {tab === "settings" && <SettingsForm initial={settings} />}
+        {tab === "settings" && canManage && settings && <SettingsForm initial={settings} />}
       </div>
     </div>
   );
@@ -1174,9 +1316,14 @@ function DashboardInner({
 
 export function WriteDashboard(props: {
   initialEntries: EntryDTO[];
-  settings: SiteSettings;
+  /** 能不能进「本子信息」等管理区：他（作者口令）能，她（读者密码）不能 */
+  canManage: boolean;
+  /** 只在能进管理区时才传（不进读者的 RSC payload） */
+  settings?: SiteSettings;
   initialEggs: EggDTO[];
   initialMilestones: MilestoneDTO[];
+  /** 排片（纪念视频首映）：两人都能发，列表里都能改 */
+  initialScreenings: Screening[];
   album: AlbumPickItem[];
   /** 全局标签库 */
   allTags: string[];

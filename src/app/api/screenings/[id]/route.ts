@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { deleteScreening, getScreening, setScreeningVisibility, updateScreening } from "@/lib/screenings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const { id } = await ctx.params;
   if (!getScreening(id)) return NextResponse.json({ error: "这场放映不存在" }, { status: 404 });
@@ -38,8 +38,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 }
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const { id } = await ctx.params;
   await deleteScreening(id);

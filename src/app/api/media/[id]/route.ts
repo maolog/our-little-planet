@@ -83,8 +83,8 @@ function guestCanSeeMedia(row: MediaRow): boolean {
  *  本地模式：直接读文件返回（视频带 Range 支持） */
 /** 改照片/视频的描述 / 日期 / 标签（「本子里的一切」按张管理用） */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const { id } = await ctx.params;
   const row = getMediaById(id);
@@ -118,9 +118,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       const now = new Date().toISOString();
       target = `${body.entryDate.replaceAll("-", "")}${Math.random().toString(16).slice(2, 8)}`;
       db.prepare(
-        `INSERT INTO entries (id, type, title, body, entry_date, published, created_at, updated_at)
-         VALUES (?, 'photo', NULL, '', ?, 1, ?, ?)`
-      ).run(target, body.entryDate, now, now);
+        `INSERT INTO entries (id, type, title, body, entry_date, published, created_by, created_at, updated_at)
+         VALUES (?, 'photo', NULL, '', ?, 1, ?, ?, ?)`
+      ).run(target, body.entryDate, (await isAuthor()) ? "author" : "reader", now, now);
     }
     if (!oldEntryId || oldEntryId !== target) {
       db.prepare("UPDATE media SET entry_id = ? WHERE id = ?").run(target, id);
@@ -145,8 +145,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
  *  已挂到条目上的必须带 ?force=1（按张删除的界面才带）——这个口子平时只清理
  *  未入册的孤儿上传，别让「放弃编辑」的清理误删已经贴进本子的照片 */
 export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const { id } = await ctx.params;
   const row = getMediaById(id);

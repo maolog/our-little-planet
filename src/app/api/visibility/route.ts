@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { nowISO } from "@/lib/ids";
 
 export const runtime = "nodejs";
@@ -10,8 +10,8 @@ const ID_RE = /^[a-f0-9]{8,16}$/;
 
 /** 批量设置公开/仅她（作者）：「本子里的一切」勾一排历史内容，一次放开或收回 */
 export async function POST(req: Request) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const body = (await req.json().catch(() => null)) as
     | { entryIds?: unknown; milestoneIds?: unknown; visibility?: unknown }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { MAX_UPLOAD_BYTES, isAcceptedFile, prepareMediaUpload } from "@/lib/media";
 import { storageMode } from "@/lib/storage";
 
@@ -12,8 +12,8 @@ const MAX_LABEL = MAX_UPLOAD_BYTES >= 1024 * 1024 * 1024 ? `${Math.round(MAX_UPL
  *  OSS 模式 → 浏览器直接 PUT 到 OSS（带签名的临时 URL）；
  *  本地模式 → PUT 到 /api/upload/direct 中转落盘 */
 export async function POST(req: Request) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const body = (await req.json().catch(() => null)) as { name?: string; mime?: string; size?: number } | null;
   if (!body || typeof body.name !== "string" || typeof body.mime !== "string") {

@@ -28,6 +28,8 @@ export type EntryInput = {
   tags?: string[];
   /** 访客模式：public = 不登录也能看；缺省 private = 仅她（输密码）可见 */
   visibility?: "public" | "private";
+  /** 发布者：缺省 author（他，作者口令）；她用读者密码发布时传 reader */
+  createdBy?: "author" | "reader";
 };
 
 export type PublicMedia = {
@@ -227,8 +229,8 @@ export function createEntry(input: EntryInput): EntryWithMedia {
   const refMedia = sanitizeRefMediaList(input.refMedia, new Set((input.media ?? []).map((m) => m.id)));
   const tags = sanitizeTags(input.tags);
   db.prepare(
-    `INSERT INTO entries (id, type, title, body, speaker, mood, entry_date, published, reveal_at, layout, ref_media, tags, visibility, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO entries (id, type, title, body, speaker, mood, entry_date, published, reveal_at, layout, ref_media, tags, visibility, created_by, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     input.type,
@@ -242,6 +244,7 @@ export function createEntry(input: EntryInput): EntryWithMedia {
     refMedia === "[]" ? null : refMedia,
     tags.length > 0 ? JSON.stringify(tags) : null,
     input.visibility === "public" ? "public" : "private",
+    input.createdBy === "reader" ? "reader" : "author",
     now,
     now
   );

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { createScreening, listScreenings } from "@/lib/screenings";
 
 export const runtime = "nodejs";
@@ -7,16 +7,16 @@ export const dynamic = "force-dynamic";
 
 /** 放映室场次（作者管理用）：全部场次含未首映 */
 export async function GET() {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   return NextResponse.json({ screenings: listScreenings({ includeUnpublished: true }) });
 }
 
 /** 排一场新放映：传做好的完整视频 */
 export async function POST(req: Request) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const body = (await req.json().catch(() => null)) as
     | { title?: string; subtitle?: string; premiereAt?: string; mediaId?: string; coverMediaId?: string; visibility?: string }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { deleteMediaFile, getMediaById, stickerInUse } from "@/lib/media";
 
 export const runtime = "nodejs";
@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 
 /** 从贴纸库删掉一张（作者）。还有拼贴页在用时不许删 */
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const { id } = await ctx.params;
   const row = getMediaById(id);

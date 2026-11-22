@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthor } from "@/lib/auth";
+import { isReader } from "@/lib/auth";
 import { heicToJpeg } from "@/lib/heic";
 import { MAX_UPLOAD_BYTES, storeJpegMedia } from "@/lib/media";
 
@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
  *  local 模式落盘，oss 模式由服务端代传 OSS；响应返回修正后的 key/mime/bytes/尺寸，
  *  客户端拿它们去 complete 入库 */
 export async function PUT(req: Request) {
-  if (!(await isAuthor())) {
-    return NextResponse.json({ error: "先去 /write 输入作者口令" }, { status: 401 });
+  if (!(await isReader())) {
+    return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
   const mediaId = new URL(req.url).searchParams.get("mediaId") ?? "";
   if (!/^[a-f0-9]{8,16}$/.test(mediaId)) {

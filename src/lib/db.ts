@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS entries (
   layout     TEXT,                      -- 自由拼贴页（board）：元素布局 JSON
   ref_media  TEXT,                      -- 引用的相册照片/视频 JSON：[{id,caption,sort}]（条目本体不拥有它们）
   tags       TEXT,                      -- 相册标签 JSON：["青海之行",...]（相册墙按它筛选）
+  created_by TEXT NOT NULL DEFAULT 'author', -- 发布者：author = 他（作者口令），reader = 她（读者密码）
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -191,6 +192,12 @@ function getDb(): Database.Database {
     } catch {
       /* 列已存在 */
     }
+    // 发布者归属：作者口令发的记 author，读者密码（她）发的记 reader；老数据默认归他
+    try {
+      db.exec("ALTER TABLE entries ADD COLUMN created_by TEXT NOT NULL DEFAULT 'author'");
+    } catch {
+      /* 列已存在 */
+    }
     // 她的评论可以带图（media id 数组 JSON，图片本体在 media 表）
     try {
       db.exec("ALTER TABLE marks ADD COLUMN media_ids TEXT");
@@ -313,6 +320,8 @@ export type EntryRow = {
   tags: string | null;
   /** 访客模式：public = 不登录也能看，private = 仅她（输密码）可见 */
   visibility: "public" | "private";
+  /** 发布者：author = 他（作者口令），reader = 她（读者密码） */
+  created_by: "author" | "reader";
   created_at: string;
   updated_at: string;
 };

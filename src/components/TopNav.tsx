@@ -116,7 +116,7 @@ export function TopNav({
                 {t(labelKey)}
               </Link>
             ))}
-            {author && (
+            {(author || reader) && (
               <Link
                 href="/write"
                 className={cn(

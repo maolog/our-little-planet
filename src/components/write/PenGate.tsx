@@ -23,7 +23,8 @@ export function PenGate({ demoHint }: { demoHint?: string }) {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/pen", {
+      // /api/lock：读者密码和作者口令都收（她凭读者密码进来写作，他凭作者口令拿笔）
+      const res = await fetch("/api/lock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password, remember }),

@@ -11,6 +11,7 @@ import {
   Eye,
   EyeSlash,
   FlagBanner,
+  FilmSlate,
   FolderOpen,
   Gift,
   ImageSquare,
@@ -61,6 +62,8 @@ export type EntryDTO = {
   /** 入库/最后修改时间（ISO）：后台「本子里的一切」展示用 */
   created_at?: string;
   updated_at?: string;
+  /** 发布者：author = 他（作者口令），reader = 她（读者密码）；旧数据没有 */
+  created_by?: "author" | "reader";
 };
 
 type PickItem = {
@@ -178,7 +181,7 @@ const metaSem = makeSemaphore(8);
 const RENDER_CHUNK = 60;
 
 /** 写一页里可选的内容类型：前四个走本表单；大事记/彩蛋是外部表单，选中后由外层渲染 */
-export type FormKind = EntryDTO["type"] | "milestone" | "egg";
+export type FormKind = EntryDTO["type"] | "milestone" | "egg" | "screening";
 
 const TYPES: { value: FormKind; labelKey: DictKey; icon: typeof Notebook; hintKey: DictKey }[] = [
   { value: "journal", labelKey: "ef.type.journal", icon: Notebook, hintKey: "ef.type.journalHint" },
@@ -186,6 +189,7 @@ const TYPES: { value: FormKind; labelKey: DictKey; icon: typeof Notebook; hintKe
   { value: "quote", labelKey: "ef.type.quote", icon: ChatTeardropText, hintKey: "ef.type.quoteHint" },
   { value: "letter", labelKey: "ef.type.letter", icon: EnvelopeSimple, hintKey: "ef.type.letterHint" },
   { value: "milestone", labelKey: "ef.type.milestone", icon: FlagBanner, hintKey: "ef.type.milestoneHint" },
+  { value: "screening", labelKey: "ef.type.screening", icon: FilmSlate, hintKey: "ef.type.screeningHint" },
   { value: "egg", labelKey: "ef.type.egg", icon: Gift, hintKey: "ef.type.eggHint" },
 ];
 
@@ -518,6 +522,7 @@ export function EntryForm({
   type: typeProp,
   album = [],
   knownTags = [],
+  canManage = true,
   onTagDelete,
   onSaved,
   onCancel,
@@ -530,6 +535,8 @@ export function EntryForm({
   album?: AlbumPickItem[];
   /** 本子里已用过的标签（输入框下的「标签库」建议） */
   knownTags?: string[];
+  /** 能不能建彩蛋（只有他能）：false 时类型卡里藏起彩蛋这一张 */
+  canManage?: boolean;
   /** 从标签库里全局删掉一个标签 */
   onTagDelete?: (name: string) => void;
   onSaved: (entry: EntryDTO, isNew: boolean) => void;
@@ -1217,7 +1224,7 @@ export function EntryForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (type === "milestone" || type === "egg") return; // 这两个类型的外部表单不走这里的提交
+    if (type === "milestone" || type === "egg" || type === "screening") return; // 这些类型的外部表单不走这里的提交
     if (busy || !canSubmit) return;
     setError("");
     try {
@@ -1380,9 +1387,10 @@ export function EntryForm({
   }
 
   // 类型选择卡：手账/照片/语录/信用本表单；大事记/彩蛋选中后由外层换上对应表单
+  // 彩蛋只有他能建（canManage = 她进写作台时隐藏这张卡）
   const typeCards = (
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-      {TYPES.map(({ value, labelKey, icon: Icon, hintKey }) => (
+      {TYPES.filter(({ value }) => value !== "egg" || canManage).map(({ value, labelKey, icon: Icon, hintKey }) => (
         <button
           key={value}
           type="button"
@@ -1404,12 +1412,12 @@ export function EntryForm({
   );
 
   // 大事记 / 彩蛋：只留类型卡，表单由外层（写一页工作台）渲染
-  if (type === "milestone" || type === "egg") {
+  if (type === "milestone" || type === "egg" || type === "screening") {
     return (
       <div className="card-paper">
         {typeCards}
         <p className="mt-4 px-1 text-xs leading-relaxed text-ink-soft/80">
-          {type === "milestone" ? t("ef.msIntro") : t("ef.eggIntro")}
+          {type === "milestone" ? t("ef.msIntro") : type === "screening" ? t("ef.scrIntro") : t("ef.eggIntro")}
         </p>
       </div>
     );
