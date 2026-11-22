@@ -87,7 +87,7 @@ export const zhCN = {
   "set.title": "本子的名字（首页大标题）",
   "set.titlePh": "我们的小星球",
   "set.names": "封面上的两个人",
-  "set.namesPh": "小张 ♥ 小星",
+  "set.namesPh": "Marshall ♥ Evelyn",
   "set.startDate": "在一起的纪念日（首页天数从这天开始算）",
   "set.hideQuoteDate": "语录便利贴上不显示日期",
   "set.hideQuoteDateDesc": "批量导入的语录全是同一天时，墙上一排同日期不好看",

@@ -3,7 +3,7 @@ import { db } from "./db";
 export type SiteSettings = {
   /** 本子的名字，如「我们的小星球」 */
   title: string;
-  /** 封面上的两个人，如「小张 ♥ 小星」 */
+  /** 封面上的两个人，如「老周 ♥ 小刘」 */
   names: string;
   /** 在一起的纪念日 YYYY-MM-DD，首页天数从这天算起 */
   startDate: string;
