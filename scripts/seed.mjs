@@ -118,8 +118,8 @@ const daysAgo = (n) => {
 
 const SETTINGS = {
   title: "我们的小星球",
-  names: "小张 ♥ 小星",
-  startDate: "2025-05-20",
+  names: "老周 ♥ 小刘",
+  startDate: "2024-04-28",
   // Someday 彩蛋示例：日期设为今天，现在就能体验完整流程（生产环境请改成真正的惊喜日）
   somedayDate: today,
   somedayTitle: "给你的礼物",

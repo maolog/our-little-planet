@@ -35,14 +35,15 @@ export type SiteSettings = {
   guestWelcome: string;
 };
 
-/** 首页封面上的两个人（署名）可用 `SITE_NAMES` 环境变量自定义；
- *  后台「本子信息」保存过的以数据库值为准（getSettings 里 DB 值覆盖这里） */
+/** 首页封面上的两个人（署名）与在一起的纪念日可用 `SITE_NAMES` / `START_DATE`
+ *  环境变量自定义；后台「本子信息」保存过的以数据库值为准（getSettings 里 DB 值覆盖这里） */
 const ENV_NAMES = process.env.SITE_NAMES?.trim();
+const ENV_START_DATE = process.env.START_DATE?.trim();
 
 export const DEFAULT_SETTINGS: SiteSettings = {
   title: "我们的小星球",
-  names: ENV_NAMES || "小张 ♥ 小星",
-  startDate: "2025-05-20",
+  names: ENV_NAMES || "老周 ♥ 小刘",
+  startDate: ENV_START_DATE || "2024-04-28",
   somedayDate: "",
   somedayTitle: "",
   somedayPassword: "",

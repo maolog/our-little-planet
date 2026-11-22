@@ -238,7 +238,8 @@ npm run dev                  # 打开 http://localhost:3000
 | `AUTHOR_PASSWORD` | 作者口令，你自己记内容用，别告诉她 | `write-for-her` |
 | `AUTHOR_SESSION_HOURS` | 作者会话几小时后过期（登录时勾「这台设备是我自己的」则 30 天） | `6` |
 | `NEXT_PUBLIC_READER_NAME` | 界面上对她的称呼：「仅她可见」「她的专属入口」……换成她的昵称 | `她` |
-| `SITE_NAMES` | 首页封面上的两个人（署名），如「小张 ♥ 小星」；后台「本子信息」保存过的以后台为准 | `小张 ♥ 小星` |
+| `SITE_NAMES` | 首页封面上的两个人（署名），如「小张 ♥ 小星」；后台「本子信息」保存过的以后台为准 | `老周 ♥ 小刘` |
+| `START_DATE` | 两个人在一起的纪念日 `YYYY-MM-DD`（首页「day N」从这天算起）；后台保存过的以后台为准 | `2024-04-28` |
 | `SHORTCUT_TOKEN` | 快捷指令速记通道的令牌，`openssl rand -hex 24` 生成；不设置则通道关闭 | 无（可选） |
 | `FFMPEG_PATH` | ffmpeg 可执行文件路径；不设置则用系统 PATH 里的 | 无（可选） |
 | `NEXT_PUBLIC_DEMO_MODE` | 演示站开关：设 `1` 后整本手账跑在内存里、定时重置，上传换成内置样例（见 [`deploy/DEMO.md`](deploy/DEMO.md)；改了要重新 build） | 无（可选） |
