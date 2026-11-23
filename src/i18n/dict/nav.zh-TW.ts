@@ -52,6 +52,25 @@ export const zhTW: Record<keyof NavMessages, string> = {
   "lock.book.coverUs": "我們倆",
   "lock.book.coverJournal": "的手賬",
 
+  // 隱蔽寫作入口 DeskForm（/desk）
+  "desk.title": "這扇門通向寫作台",
+  "desk.sub": "他和她各有一把鑰匙，先選身分再輸密碼",
+  "desk.pick.he": "我是他（作者口令）",
+  "desk.pick.she": "我是她（讀者密碼）",
+  "desk.chosen.he": "以他的身分進門",
+  "desk.chosen.she": "以她的身分進門",
+  "desk.placeholder": "嗯…那串暗號是",
+  "desk.aria": "身分密碼",
+  "desk.remember": "這台裝置是我自己的（30 天內不用再輸）",
+  "desk.cta": "就是我，推門",
+  "desk.busy": "正在推門…",
+  "desk.back": "換一個身分",
+  "desk.error.wrong": "密碼好像不對哦，再想想？",
+  "desk.error.network": "網路好像打了個盹，再試一次？",
+  "desk.guest": "先隨便逛逛（訪客模式）",
+  "desk.psst": "psst. 兩把鑰匙，只有他知道",
+  "desk.demoHint": "示範站：他的口令 {he} · 她的密碼 {she}",
+
   // 演示角標 DemoBadge
   "demo.title": "這是公開示範站 🌱",
   "demo.body1":

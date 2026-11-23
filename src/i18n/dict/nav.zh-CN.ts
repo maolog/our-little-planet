@@ -50,6 +50,25 @@ export const zhCN = {
   "lock.book.coverUs": "我们俩",
   "lock.book.coverJournal": "的手账",
 
+  // 隐蔽写作入口 DeskForm（/desk）
+  "desk.title": "这扇门通向写作台",
+  "desk.sub": "他和她各有一把钥匙，先选身份再输密码",
+  "desk.pick.he": "我是他（作者口令）",
+  "desk.pick.she": "我是她（读者密码）",
+  "desk.chosen.he": "以他的身份进门",
+  "desk.chosen.she": "以她的身份进门",
+  "desk.placeholder": "嗯…那串暗号是",
+  "desk.aria": "身份密码",
+  "desk.remember": "这台设备是我自己的（30 天内不用再输）",
+  "desk.cta": "就是我，推门",
+  "desk.busy": "正在推门…",
+  "desk.back": "换一个身份",
+  "desk.error.wrong": "密码好像不对哦，再想想？",
+  "desk.error.network": "网络好像打了个盹，再试一次？",
+  "desk.guest": "先随便逛逛（访客模式）",
+  "desk.psst": "psst. 两把钥匙，只有他知道",
+  "desk.demoHint": "演示站：他的口令 {he} · 她的密码 {she}",
+
   // 演示角标 DemoBadge
   "demo.title": "这是公开演示站 🌱",
   "demo.body1":

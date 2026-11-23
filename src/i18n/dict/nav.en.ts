@@ -53,6 +53,25 @@ export const en: Record<keyof NavMessages, string> = {
   "lock.book.coverUs": "Our",
   "lock.book.coverJournal": "shared journal",
 
+  // Hidden writing desk form (/desk)
+  "desk.title": "This door leads to the writing desk",
+  "desk.sub": "He and she each have a key — pick an identity, then enter the password",
+  "desk.pick.he": "I'm him (author pass)",
+  "desk.pick.she": "I'm her (reader password)",
+  "desk.chosen.he": "Enter as him",
+  "desk.chosen.she": "Enter as her",
+  "desk.placeholder": "Hmm… that secret phrase",
+  "desk.aria": "Password for this identity",
+  "desk.remember": "This device is mine (no need to type it for 30 days)",
+  "desk.cta": "That's me — open up",
+  "desk.busy": "Opening the door…",
+  "desk.back": "Pick another identity",
+  "desk.error.wrong": "That doesn't look right — try again?",
+  "desk.error.network": "The network took a nap — try again?",
+  "desk.guest": "Just looking around (guest mode)",
+  "desk.psst": "psst. two keys, and only he knows them",
+  "desk.demoHint": "Demo site — his pass {he} · her password {she}",
+
   // Demo badge
   "demo.title": "This is a public demo 🌱",
   "demo.body1":
