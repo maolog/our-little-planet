@@ -33,6 +33,10 @@ export type SiteSettings = {
   guestScreenings: string;
   /** 访客模式：访客进门时看到的一句话（可不填） */
   guestWelcome: string;
+  /** 她可以发表的内容类型（CSV，如 "journal,photo,quote"）。空 = 什么都不能发；彩蛋永远只有他能发 */
+  shePublishTypes: string;
+  /** 她登录后可见的菜单项（CSV：导航栏目 + 写作台入口）。空 = 什么都看不到 */
+  sheMenuKeys: string;
 };
 
 /** 首页封面上的两个人（署名）与在一起的纪念日可用 `SITE_NAMES` / `START_DATE`
@@ -60,6 +64,9 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   guestTimeline: "0",
   guestScreenings: "0",
   guestWelcome: "",
+  // 默认全开：老库没存过这两个 key 时跟她原本的权限一致（彩蛋除外，它不在可选集合里）
+  shePublishTypes: "journal,photo,quote,letter,milestone,screening",
+  sheMenuKeys: "home,journal,album,quotes,letters,timeline,screenings,write,list,marks",
 };
 
 const KEYS = [
@@ -82,6 +89,8 @@ const KEYS = [
   "guestTimeline",
   "guestScreenings",
   "guestWelcome",
+  "shePublishTypes",
+  "sheMenuKeys",
 ] as const;
 
 export function getSettings(): SiteSettings {
