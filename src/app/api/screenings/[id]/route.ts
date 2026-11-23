@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { isReader } from "@/lib/auth";
+import { isAuthor, isReader } from "@/lib/auth";
+import { canShePublish } from "@/lib/permissions";
 import { deleteScreening, getScreening, setScreeningVisibility, updateScreening } from "@/lib/screenings";
 
 export const runtime = "nodejs";
@@ -13,6 +14,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (!getScreening(id)) return NextResponse.json({ error: "这场放映不存在" }, { status: 404 });
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ error: "参数不对" }, { status: 400 });
+  // 她只有被授予「排片」才能动这场放映（含快捷公开开关）；他不限
+  if (!(await isAuthor()) && !canShePublish("screening")) {
+    return NextResponse.json({ error: "她还不能动这类内容" }, { status: 403 });
+  }
 
   // 列表快捷开关：只带 visibility 一个字段
   if ((body.visibility === "public" || body.visibility === "private") && !body.title) {
@@ -40,6 +45,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   if (!(await isReader())) {
     return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
+  }
+  // 她只有被授予「排片」才能删；他不限
+  if (!(await isAuthor()) && !canShePublish("screening")) {
+    return NextResponse.json({ error: "她还不能动这类内容" }, { status: 403 });
   }
   const { id } = await ctx.params;
   await deleteScreening(id);

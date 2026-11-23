@@ -3,6 +3,7 @@ import { isAuthor, isReader } from "@/lib/auth";
 import { recordGuestVisitFor } from "@/lib/visitors";
 import { listEntries, listAlbum } from "@/lib/entries";
 import { getSettings } from "@/lib/settings";
+import { shePublishTypes } from "@/lib/permissions";
 import { listEggs, doodleCounts } from "@/lib/eggs";
 import { listMilestones } from "@/lib/milestones";
 import { listScreenings } from "@/lib/screenings";
@@ -57,6 +58,8 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
       initialEntries={entries}
       canManage={canManage}
       settings={canManage ? settings : undefined}
+      // 她能发什么由 settings 算好传入（只传类型名，settings 本体不进她的 RSC payload）；他不传＝不限
+      publishTypes={canManage ? undefined : Array.from(shePublishTypes(settings))}
       initialEggs={
         canManage
           ? eggs.map((e) => {

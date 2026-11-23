@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthor } from "@/lib/auth";
+import { MENU_KEYS, PUBLISHABLE_TYPES } from "@/lib/permissionKeys";
 import { saveSettings, type SiteSettings } from "@/lib/settings";
 
 export const runtime = "nodejs";
@@ -34,6 +35,21 @@ export async function PUT(req: Request) {
   }
   if (body.guestWelcome && body.guestWelcome.length > 200) {
     return NextResponse.json({ error: "访客欢迎语太长了（200 字以内）" }, { status: 400 });
+  }
+  // 她的权限 CSV：只认词表里的 key（未知的丢掉，去重），空串 = 全关；长度兜个底
+  const sanitizeCsv = (v: string, known: readonly string[]) =>
+    [...new Set(v.split(",").map((s) => s.trim()).filter((s) => known.includes(s)))].join(",");
+  if (body.shePublishTypes !== undefined) {
+    if (typeof body.shePublishTypes !== "string" || body.shePublishTypes.length > 300) {
+      return NextResponse.json({ error: "她的发表类型设置不对" }, { status: 400 });
+    }
+    body.shePublishTypes = sanitizeCsv(body.shePublishTypes, PUBLISHABLE_TYPES);
+  }
+  if (body.sheMenuKeys !== undefined) {
+    if (typeof body.sheMenuKeys !== "string" || body.sheMenuKeys.length > 300) {
+      return NextResponse.json({ error: "她的菜单设置不对" }, { status: 400 });
+    }
+    body.sheMenuKeys = sanitizeCsv(body.sheMenuKeys, MENU_KEYS);
   }
   return NextResponse.json({ settings: saveSettings(body) });
 }

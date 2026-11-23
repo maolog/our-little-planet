@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import { uploadFile, type MediaDTO } from "@/lib/client-upload";
 import type { SiteSettings } from "@/lib/settings";
 import { READER_NAME } from "@/lib/reader";
+import { MENU_KEYS, PUBLISHABLE_TYPES } from "@/lib/permissionKeys";
 import { useT } from "@/i18n/LocaleProvider";
 
 /** 本子信息（彩蛋已独立到「彩蛋」标签页管理） */
@@ -30,6 +31,17 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
     screenings: initial.guestScreenings === "1",
   });
   const [guestWelcome, setGuestWelcome] = useState(initial.guestWelcome);
+
+  // 她的权限：能发什么（彩蛋永远只有他能发，不在选项里）+ 登录后能看到哪些菜单
+  // CSV 解析：老库没存过这两个 key 时 getSettings 会回退到全开的默认值
+  const [shePublish, setShePublish] = useState<Record<string, boolean>>(() => {
+    const on = new Set(initial.shePublishTypes.split(",").map((s) => s.trim()).filter(Boolean));
+    return Object.fromEntries(PUBLISHABLE_TYPES.map((k) => [k, on.has(k)]));
+  });
+  const [sheMenus, setSheMenus] = useState<Record<string, boolean>>(() => {
+    const on = new Set(initial.sheMenuKeys.split(",").map((s) => s.trim()).filter(Boolean));
+    return Object.fromEntries(MENU_KEYS.map((k) => [k, on.has(k)]));
+  });
 
   // 背景音乐：新传的先放本地，保存时才落到 settings；换歌/移除的旧文件保存成功后再删
   const [bgmTitle, setBgmTitle] = useState(initial.bgmTitle);
@@ -105,6 +117,8 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
           guestTimeline: guestOpen.timeline ? "1" : "0",
           guestScreenings: guestOpen.screenings ? "1" : "0",
           guestWelcome: guestWelcome.slice(0, 200),
+          shePublishTypes: PUBLISHABLE_TYPES.filter((k) => shePublish[k]).join(","),
+          sheMenuKeys: MENU_KEYS.filter((k) => sheMenus[k]).join(","),
           bgmMediaId,
           bgmTitle: bgmTitle.slice(0, 120),
           bgmLyrics: bgmLyrics.slice(0, 20000),
@@ -227,6 +241,86 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
             placeholder={t("set.guestWelcomePh")}
             maxLength={200}
           />
+        </div>
+      </fieldset>
+
+      {/* 她的权限：她登录后能发什么、能看到哪些菜单（写一页的类型卡和接口都按这套拦） */}
+      <fieldset className="rounded-2xl border-2 border-dashed border-matcha/50 bg-matcha/10 px-4 py-4">
+        <legend className="px-1.5 text-sm font-bold text-ink">{t("set.she")}</legend>
+        <p className="mb-3.5 text-xs leading-relaxed text-ink-soft">{t("set.sheDesc", { reader: READER_NAME })}</p>
+
+        <p className="mb-2 text-sm font-bold text-ink-soft">{t("set.shePublish")}</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              { key: "journal", labelKey: "ef.type.journal", descKey: "ef.type.journalHint" },
+              { key: "photo", labelKey: "ef.type.photo", descKey: "ef.type.photoHint" },
+              { key: "quote", labelKey: "ef.type.quote", descKey: "ef.type.quoteHint" },
+              { key: "letter", labelKey: "ef.type.letter", descKey: "ef.type.letterHint" },
+              { key: "milestone", labelKey: "ef.type.milestone", descKey: "ef.type.milestoneHint" },
+              { key: "screening", labelKey: "ef.type.screening", descKey: "ef.type.screeningHint" },
+            ] as const
+          ).map(({ key, labelKey, descKey }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setShePublish((s) => ({ ...s, [key]: !s[key] }))}
+              aria-pressed={shePublish[key]}
+              className="flex items-center justify-between gap-3 rounded-2xl border-2 border-ink/10 bg-paper px-3.5 py-2.5 text-left transition hover:border-ink/25"
+            >
+              <span>
+                <span className="block text-sm font-bold">{t(labelKey)}</span>
+                <span className="mt-0.5 block text-xs text-ink-soft">{t(descKey)}</span>
+              </span>
+              <span
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${shePublish[key] ? "bg-rose-deep" : "bg-ink/20"}`}
+                aria-hidden
+              >
+                <span
+                  className={`absolute top-0.5 size-5 rounded-full bg-paper shadow transition-all ${shePublish[key] ? "left-[22px]" : "left-0.5"}`}
+                />
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <p className="mb-2 mt-4 text-sm font-bold text-ink-soft">{t("set.sheMenus")}</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              { key: "home", labelKey: "nav.tab.home", descKey: "set.guestHome" },
+              { key: "journal", labelKey: "nav.tab.journal", descKey: "set.guestJournal" },
+              { key: "album", labelKey: "nav.tab.album", descKey: "set.guestAlbum" },
+              { key: "quotes", labelKey: "nav.tab.quotes", descKey: "set.guestQuotes" },
+              { key: "letters", labelKey: "nav.tab.letters", descKey: "set.guestLetters" },
+              { key: "timeline", labelKey: "nav.tab.timeline", descKey: "set.guestTimeline" },
+              { key: "screenings", labelKey: "nav.tab.screenings", descKey: "set.guestScreenings" },
+              { key: "write", labelKey: "wd.tabWrite", descKey: "set.sheMenuWrite" },
+              { key: "list", labelKey: "wd.tabAll", descKey: "set.sheMenuList" },
+              { key: "marks", labelKey: "meta.marks", descKey: "set.sheMenuMarks" },
+            ] as const
+          ).map(({ key, labelKey, descKey }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSheMenus((s) => ({ ...s, [key]: !s[key] }))}
+              aria-pressed={sheMenus[key]}
+              className="flex items-center justify-between gap-3 rounded-2xl border-2 border-ink/10 bg-paper px-3.5 py-2.5 text-left transition hover:border-ink/25"
+            >
+              <span>
+                <span className="block text-sm font-bold">{t(labelKey)}</span>
+                <span className="mt-0.5 block text-xs text-ink-soft">{t(descKey)}</span>
+              </span>
+              <span
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${sheMenus[key] ? "bg-rose-deep" : "bg-ink/20"}`}
+                aria-hidden
+              >
+                <span
+                  className={`absolute top-0.5 size-5 rounded-full bg-paper shadow transition-all ${sheMenus[key] ? "left-[22px]" : "left-0.5"}`}
+                />
+              </span>
+            </button>
+          ))}
         </div>
       </fieldset>
 

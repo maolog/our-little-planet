@@ -523,6 +523,7 @@ export function EntryForm({
   album = [],
   knownTags = [],
   canManage = true,
+  publishTypes,
   onTagDelete,
   onSaved,
   onCancel,
@@ -537,6 +538,8 @@ export function EntryForm({
   knownTags?: string[];
   /** 能不能建彩蛋（只有他能）：false 时类型卡里藏起彩蛋这一张 */
   canManage?: boolean;
+  /** 她被授予的发表类型（服务端按 settings 传入；他不传＝不限）：不在名单里的类型卡不出现 */
+  publishTypes?: readonly string[];
   /** 从标签库里全局删掉一个标签 */
   onTagDelete?: (name: string) => void;
   onSaved: (entry: EntryDTO, isNew: boolean) => void;
@@ -1387,10 +1390,11 @@ export function EntryForm({
   }
 
   // 类型选择卡：手账/照片/语录/信用本表单；大事记/彩蛋选中后由外层换上对应表单
-  // 彩蛋只有他能建（canManage = 她进写作台时隐藏这张卡）
+  // 彩蛋只有他能建（canManage = 她进写作台时隐藏这张卡）；她还只看得到被授予发表的类型
   const typeCards = (
     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-      {TYPES.filter(({ value }) => value !== "egg" || canManage).map(({ value, labelKey, icon: Icon, hintKey }) => (
+      {TYPES.filter(({ value }) => (value !== "egg" || canManage) && (!publishTypes || publishTypes.includes(value))).map(
+        ({ value, labelKey, icon: Icon, hintKey }) => (
         <button
           key={value}
           type="button"

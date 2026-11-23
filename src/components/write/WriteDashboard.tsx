@@ -392,6 +392,7 @@ function DashboardInner({
   initialEntries,
   canManage,
   settings,
+  publishTypes,
   initialEggs,
   initialMilestones,
   initialScreenings,
@@ -407,6 +408,8 @@ function DashboardInner({
   canManage: boolean;
   /** 只在能进管理区时才从服务端传下来（不进读者的 RSC payload） */
   settings?: SiteSettings;
+  /** 她被授予的发表类型（服务端按 settings.shePublishTypes 算好传入，只传类型名）；他不传＝不限 */
+  publishTypes?: readonly string[];
   initialEggs: EggDTO[];
   initialMilestones: MilestoneDTO[];
   /** 排片（纪念视频首映）：两人都能发，列表里都能改 */
@@ -423,12 +426,28 @@ function DashboardInner({
 }) {
   const toast = useToast();
   const t = useT();
+  /** 她能不能动这个类型：他全都能；她看 publishTypes（自由拼贴 board 按手账页算） */
+  const canPublish = (k: string) => {
+    if (canManage) return true;
+    const key = k === "board" ? "journal" : k;
+    return !publishTypes || publishTypes.includes(key);
+  };
+  /** 一个类型都没批到就不给「写一页」（免得空表单不知所云），只留「本子里的一切」 */
+  const canWrite = !publishTypes || publishTypes.length > 0;
+  /** 新建表单的默认类型：她没批到手账页就退到第一个能发的 */
+  const defaultType: FormKind = TYPE_KEYS.find((k) => canPublish(k)) ?? "journal";
   // ?type=quote 直达对应新增模块（含大事记 / 彩蛋）
-  // 彩蛋只有他能建：直达链接对她退成普通写作
+  // 彩蛋只有他能建；她只到得了被授予发表的类型（越权直达退成第一个能发的）
   const initialType =
-    TYPE_KEYS.includes(initialTypeRaw as FormKind) && (initialTypeRaw !== "egg" || canManage) ? (initialTypeRaw as FormKind) : undefined;
+    TYPE_KEYS.includes(initialTypeRaw as FormKind) && (initialTypeRaw !== "egg" || canManage) && canPublish(initialTypeRaw as FormKind)
+      ? (initialTypeRaw as FormKind)
+      : undefined;
   const initialTab =
-    TAB_KEYS.includes(initialTabRaw as Tab) && (initialTabRaw !== "settings" || canManage) ? (initialTabRaw as Tab) : "write";
+    TAB_KEYS.includes(initialTabRaw as Tab) && (initialTabRaw !== "settings" || canManage) && (initialTabRaw !== "write" || canWrite)
+      ? (initialTabRaw as Tab)
+      : canWrite
+        ? "write"
+        : "list";
   const [tab, setTab] = useState<Tab>(initialTab);
   const [entries, setEntries] = useState<EntryDTO[]>(initialEntries);
   const [milestones, setMilestones] = useState<MilestoneDTO[]>(initialMilestones);
@@ -437,16 +456,17 @@ function DashboardInner({
   const [albumItems, setAlbumItems] = useState(album);
   // 新建手账页的两种写法：文字表单 / 自由拼贴画板（只在选「手账页」时出现）
   const [pageMode, setPageMode] = useState<"form" | "board">("form");
-  const [formType, setFormType] = useState<FormKind>(initialType ?? "journal");
+  const [formType, setFormType] = useState<FormKind>(initialType ?? defaultType);
   // 保存过一页后让新建画板 / 大事记 / 彩蛋表单重置成空白
   const [boardSeq, setBoardSeq] = useState(0);
   const [milestoneSeq, setMilestoneSeq] = useState(0);
   const [screeningSeq, setScreeningSeq] = useState(0);
   const [eggSeq, setEggSeq] = useState(0);
-  // ?edit=id 时直接进入编辑（惰性初始化，避免 effect 里 setState）
-  const [editing, setEditing] = useState<EntryDTO | null>(() =>
-    editId ? (initialEntries.find((e) => e.id === editId) ?? null) : null
-  );
+  // ?edit=id 时直接进入编辑（惰性初始化，避免 effect 里 setState）；她越权的类型不给进
+  const [editing, setEditing] = useState<EntryDTO | null>(() => {
+    const hit = editId ? (initialEntries.find((e) => e.id === editId) ?? null) : null;
+    return hit && canPublish(hit.type) ? hit : null;
+  });
   const [editingMilestone, setEditingMilestone] = useState<MilestoneDTO | null>(null);
   const [editingScreening, setEditingScreening] = useState<Screening | null>(null);
   const [editingEgg, setEditingEgg] = useState<EggDTO | null>(null);
@@ -618,6 +638,16 @@ function DashboardInner({
     }
   }
 
+  /** 这行她能不能动：改删 / 公开开关 / 批量勾选都看它（他全都能，她只到得了被授予的类型） */
+  const rowPublishable = (r: Row) =>
+    r.t === "entry"
+      ? canPublish(r.entry.type)
+      : r.t === "milestone"
+        ? canPublish("milestone")
+        : r.t === "screening"
+          ? canPublish("screening")
+          : canManage; // 彩蛋只有他能动
+
   /** 批量模式：勾/取消一行 */
   function togglePicked(id: string) {
     setPicked((prev) => {
@@ -630,8 +660,10 @@ function DashboardInner({
 
   /** 一键把当前筛选下能勾的行全部勾上/清空 */
   function pickAllVisible(visible: Row[]) {
-    // 批量只勾条目和大事记（排片/彩蛋不参与批量公开设置）
-    const ids = visible.filter((r) => r.t === "entry" || r.t === "milestone").map((r) => (r.t === "entry" ? r.entry.id : r.milestone.id));
+    // 批量只勾条目和大事记（排片/彩蛋不参与批量公开设置），且她只勾得到被授予的类型
+    const ids = visible
+      .filter((r): r is Extract<Row, { t: "entry" } | { t: "milestone" }> => (r.t === "entry" || r.t === "milestone") && rowPublishable(r))
+      .map((r) => (r.t === "entry" ? r.entry.id : r.milestone.id));
     setPicked((prev) => {
       const next = new Set(prev);
       const allOn = ids.every((id) => next.has(id));
@@ -774,7 +806,10 @@ function DashboardInner({
       <div className="mt-7 flex gap-2 overflow-x-auto no-scrollbar">
         {(
           [
-            { value: "write" as Tab, label: editingSomething ? t("wd.tabEdit") : t("wd.tabWrite"), icon: PencilSimple, cls: "bg-rose-soft text-rose-deep" },
+            // 一个类型都没批到的她不给「写一页」，只留「本子里的一切」
+            ...(canWrite
+              ? [{ value: "write" as Tab, label: editingSomething ? t("wd.tabEdit") : t("wd.tabWrite"), icon: PencilSimple, cls: "bg-rose-soft text-rose-deep" }]
+              : []),
             { value: "list" as Tab, label: t("wd.tabAll"), icon: Stack, cls: "bg-mist text-ink" },
             // 「本子信息」只有他能进（她只写内容，不改本子设置）
             ...(canManage
@@ -844,7 +879,7 @@ function DashboardInner({
                   onCancel={() => setEditing(null)}
                 />
               ) : (
-                <EntryForm key={editing.id} initial={editing} album={albumItems} knownTags={tagLib} canManage={canManage} onTagDelete={(t) => void deleteTagGlobally(t)} onSaved={onSaved} onCancel={() => setEditing(null)} />
+                <EntryForm key={editing.id} initial={editing} album={albumItems} knownTags={tagLib} canManage={canManage} publishTypes={publishTypes} onTagDelete={(t) => void deleteTagGlobally(t)} onSaved={onSaved} onCancel={() => setEditing(null)} />
               )}
             </div>
           ) : editingMilestone ? (
@@ -903,7 +938,7 @@ function DashboardInner({
               )}
               {/* 文字表单（含 6 张类型卡）；两个都保持挂载、按需显隐：切来切去不丢草稿 */}
               <div className={pageMode === "board" ? "hidden" : undefined}>
-                <EntryForm onSaved={onSaved} onTypeChange={setFormType} type={formType} album={albumItems} knownTags={tagLib} canManage={canManage} onTagDelete={(t) => void deleteTagGlobally(t)} />
+                <EntryForm onSaved={onSaved} onTypeChange={setFormType} type={formType} album={albumItems} knownTags={tagLib} canManage={canManage} publishTypes={publishTypes} onTagDelete={(t) => void deleteTagGlobally(t)} />
               </div>
               {/* 大事记 / 彩蛋表单（类型卡选到它们时出现） */}
               {pageMode === "form" && formType === "milestone" && (
@@ -911,15 +946,15 @@ function DashboardInner({
                   key={milestoneSeq}
                   album={albumItems}
                   onSaved={onMilestoneSaved}
-                  onCancel={() => setFormType("journal")}
+                  onCancel={() => setFormType(defaultType)}
                   onAlbumGrow={(item) => setAlbumItems((prev) => [item, ...prev])}
                 />
               )}
               {pageMode === "form" && formType === "screening" && (
-                <ScreeningForm key={screeningSeq} album={albumItems} onSaved={onScreeningSaved} onCancel={() => setFormType("journal")} />
+                <ScreeningForm key={screeningSeq} album={albumItems} onSaved={onScreeningSaved} onCancel={() => setFormType(defaultType)} />
               )}
               {pageMode === "form" && formType === "egg" && (
-                <EggForm key={eggSeq} album={albumItems} onSaved={onEggSaved} onCancel={() => setFormType("journal")} />
+                <EggForm key={eggSeq} album={albumItems} onSaved={onEggSaved} onCancel={() => setFormType(defaultType)} />
               )}
               <div className={pageMode === "board" ? undefined : "hidden"}>
                 <BoardEditor key={boardSeq} onSaved={onSaved} />
@@ -970,7 +1005,11 @@ function DashboardInner({
                   className="flex items-center gap-1.5 rounded-full border border-ink/15 px-3.5 py-1.5 text-sm font-bold text-ink-soft transition hover:bg-ink/5 hover:text-ink"
                 >
                   {(() => {
-                    const ids = visibleRows.filter((r) => r.t === "entry" || r.t === "milestone").map((r) => (r.t === "entry" ? r.entry.id : r.milestone.id));
+                    const ids = visibleRows
+                      .filter((r): r is Extract<Row, { t: "entry" } | { t: "milestone" }> =>
+                        (r.t === "entry" || r.t === "milestone") && rowPublishable(r)
+                      )
+                      .map((r) => (r.t === "entry" ? r.entry.id : r.milestone.id));
                     const allOn = ids.length > 0 && ids.every((id) => picked.has(id));
                     return allOn ? <CheckCircle weight="fill" className="size-4 text-rose-deep" /> : <Circle className="size-4" />;
                   })()}
@@ -1039,17 +1078,18 @@ function DashboardInner({
               if (row.t === "entry") {
                 const e = row.entry;
                 const meta = TYPE_META[e.type] ?? TYPE_META.journal;
+                const may = rowPublishable(row);
                 return (
                   <div key={e.id}>
                     <div
                       className={cn(
                         "card-paper flex items-center gap-4 px-5 py-4 transition",
-                        batch && "cursor-pointer hover:border-rose/40",
+                        batch && may && "cursor-pointer hover:border-rose/40",
                         batch && picked.has(e.id) && "border-rose-deep/50 bg-rose-soft/20"
                       )}
-                      onClick={batch ? () => togglePicked(e.id) : undefined}
+                      onClick={batch && may ? () => togglePicked(e.id) : undefined}
                     >
-                      {batch && <PickBox on={picked.has(e.id)} onClick={() => togglePicked(e.id)} label={t("wd.pickRow", { title: e.title ?? t("wd.thisPage") })} />}
+                      {batch && may && <PickBox on={picked.has(e.id)} onClick={() => togglePicked(e.id)} label={t("wd.pickRow", { title: e.title ?? t("wd.thisPage") })} />}
                       <ListThumb entry={e} meta={meta} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-bold">
@@ -1060,17 +1100,19 @@ function DashboardInner({
                             {e.entry_date.replaceAll("-", ".")} · {t(meta.labelKey)}
                             {e.media.length > 0 && t("wd.entryMedia", { n: e.media.length })}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => void toggleEntryVisibility(e)}
-                            title={e.visibility === "public" ? t("wd.visTitlePublic") : t("wd.visTitlePrivate", { reader: READER_NAME })}
-                            className={cn(
-                              "rounded-full px-2 py-0.5 font-bold transition",
-                              e.visibility === "public" ? "bg-matcha/50 text-ink" : "bg-ink/8 text-ink-soft"
-                            )}
-                          >
-                            {e.visibility === "public" ? t("wd.visPublic") : t("wd.visPrivate", { reader: READER_NAME })}
-                          </button>
+                          {may && (
+                            <button
+                              type="button"
+                              onClick={() => void toggleEntryVisibility(e)}
+                              title={e.visibility === "public" ? t("wd.visTitlePublic") : t("wd.visTitlePrivate", { reader: READER_NAME })}
+                              className={cn(
+                                "rounded-full px-2 py-0.5 font-bold transition",
+                                e.visibility === "public" ? "bg-matcha/50 text-ink" : "bg-ink/8 text-ink-soft"
+                              )}
+                            >
+                              {e.visibility === "public" ? t("wd.visPublic") : t("wd.visPrivate", { reader: READER_NAME })}
+                            </button>
+                          )}
                           {isScheduled(e) && (
                             <span className="rounded-full bg-butter px-2 py-0.5 font-bold text-ink">
                               {t("wd.scheduled", { date: e.reveal_at!.replaceAll("-", ".") })}
@@ -1089,7 +1131,7 @@ function DashboardInner({
                           </p>
                         )}
                       </div>
-                      {!batch && (
+                      {!batch && may && (
                         <button
                           type="button"
                           onClick={() => goEditEntry(e)}
@@ -1099,7 +1141,7 @@ function DashboardInner({
                           <PencilSimple className="size-4" />
                         </button>
                       )}
-                      {!batch && (
+                      {!batch && may && (
                         <button
                           type="button"
                           onClick={() => void onDeleteEntry(e)}
@@ -1115,17 +1157,18 @@ function DashboardInner({
               }
               if (row.t === "milestone") {
                 const m = row.milestone;
+                const may = rowPublishable(row);
                 return (
                   <div key={m.id}>
                     <div
                       className={cn(
                         "card-paper flex items-center gap-4 px-5 py-4 transition",
-                        batch && "cursor-pointer hover:border-rose/40",
+                        batch && may && "cursor-pointer hover:border-rose/40",
                         batch && picked.has(m.id) && "border-rose-deep/50 bg-rose-soft/20"
                       )}
-                      onClick={batch ? () => togglePicked(m.id) : undefined}
+                      onClick={batch && may ? () => togglePicked(m.id) : undefined}
                     >
-                      {batch && <PickBox on={picked.has(m.id)} onClick={() => togglePicked(m.id)} label={t("wd.pickRow", { title: m.title })} />}
+                      {batch && may && <PickBox on={picked.has(m.id)} onClick={() => togglePicked(m.id)} label={t("wd.pickRow", { title: m.title })} />}
                       <span
                         className={cn(
                           "grid size-11 shrink-0 place-items-center rounded-xl bg-butter text-ink",
@@ -1145,17 +1188,19 @@ function DashboardInner({
                             {m.date.replaceAll("-", ".")}{t("wd.msKind")}
                             {m.mediaIds.length > 0 && t("wd.msMedia", { n: m.mediaIds.length })}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => void toggleMilestoneVisibility(m)}
-                            title={m.visibility === "public" ? t("wd.visTitlePublic") : t("wd.visTitlePrivate", { reader: READER_NAME })}
-                            className={cn(
-                              "rounded-full px-2 py-0.5 font-bold transition",
-                              m.visibility === "public" ? "bg-matcha/50 text-ink" : "bg-ink/8 text-ink-soft"
-                            )}
-                          >
-                            {m.visibility === "public" ? t("wd.visPublic") : t("wd.visPrivate", { reader: READER_NAME })}
-                          </button>
+                          {may && (
+                            <button
+                              type="button"
+                              onClick={() => void toggleMilestoneVisibility(m)}
+                              title={m.visibility === "public" ? t("wd.visTitlePublic") : t("wd.visTitlePrivate", { reader: READER_NAME })}
+                              className={cn(
+                                "rounded-full px-2 py-0.5 font-bold transition",
+                                m.visibility === "public" ? "bg-matcha/50 text-ink" : "bg-ink/8 text-ink-soft"
+                              )}
+                            >
+                              {m.visibility === "public" ? t("wd.visPublic") : t("wd.visPrivate", { reader: READER_NAME })}
+                            </button>
+                          )}
                         </p>
                         {m.createdAt && (
                           <p className="mt-1 font-round text-[10px] tracking-wider text-ink-soft/60">
@@ -1164,7 +1209,7 @@ function DashboardInner({
                           </p>
                         )}
                       </div>
-                      {!batch && (
+                      {!batch && may && (
                         <button
                           type="button"
                           onClick={() => goEditMilestone(m)}
@@ -1174,7 +1219,7 @@ function DashboardInner({
                           <PencilSimple className="size-4" />
                         </button>
                       )}
-                      {!batch && (
+                      {!batch && may && (
                         <button
                           type="button"
                           onClick={() => void onDeleteMilestone(m)}
@@ -1190,6 +1235,7 @@ function DashboardInner({
               }
               if (row.t === "screening") {
                 const s = row.screening;
+                const may = rowPublishable(row);
                 return (
                   <div key={s.id}>
                     <div className="card-paper flex items-center gap-4 px-5 py-4">
@@ -1202,17 +1248,19 @@ function DashboardInner({
                           <span>
                             {s.premiereAt.replaceAll("-", ".")}{s.subtitle ? ` · ${s.subtitle}` : ""}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => void toggleScreeningVisibility(s)}
-                            title={s.visibility === "public" ? t("wd.visTitlePublic") : t("wd.visTitlePrivate", { reader: READER_NAME })}
-                            className={cn(
-                              "rounded-full px-2 py-0.5 font-bold transition",
-                              s.visibility === "public" ? "bg-matcha/50 text-ink" : "bg-ink/8 text-ink-soft"
-                            )}
-                          >
-                            {s.visibility === "public" ? t("wd.visPublic") : t("wd.visPrivate", { reader: READER_NAME })}
-                          </button>
+                          {may && (
+                            <button
+                              type="button"
+                              onClick={() => void toggleScreeningVisibility(s)}
+                              title={s.visibility === "public" ? t("wd.visTitlePublic") : t("wd.visTitlePrivate", { reader: READER_NAME })}
+                              className={cn(
+                                "rounded-full px-2 py-0.5 font-bold transition",
+                                s.visibility === "public" ? "bg-matcha/50 text-ink" : "bg-ink/8 text-ink-soft"
+                              )}
+                            >
+                              {s.visibility === "public" ? t("wd.visPublic") : t("wd.visPrivate", { reader: READER_NAME })}
+                            </button>
+                          )}
                         </p>
                         {s.createdAt && (
                           <p className="mt-1 font-round text-[10px] tracking-wider text-ink-soft/60">
@@ -1221,22 +1269,26 @@ function DashboardInner({
                           </p>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => goEditScreening(s)}
-                        aria-label={t("action.edit")}
-                        className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink"
-                      >
-                        <PencilSimple className="size-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void onDeleteScreening(s)}
-                        aria-label={t("action.delete")}
-                        className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep"
-                      >
-                        <TrashSimple className="size-4" />
-                      </button>
+                      {may && (
+                        <button
+                          type="button"
+                          onClick={() => goEditScreening(s)}
+                          aria-label={t("action.edit")}
+                          className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink"
+                        >
+                          <PencilSimple className="size-4" />
+                        </button>
+                      )}
+                      {may && (
+                        <button
+                          type="button"
+                          onClick={() => void onDeleteScreening(s)}
+                          aria-label={t("action.delete")}
+                          className="grid size-9 place-items-center rounded-full text-ink-soft transition hover:bg-rose-soft hover:text-rose-deep"
+                        >
+                          <TrashSimple className="size-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1320,6 +1372,8 @@ export function WriteDashboard(props: {
   canManage: boolean;
   /** 只在能进管理区时才传（不进读者的 RSC payload） */
   settings?: SiteSettings;
+  /** 她被授予的发表类型（只传类型名）；他不传＝不限 */
+  publishTypes?: readonly string[];
   initialEggs: EggDTO[];
   initialMilestones: MilestoneDTO[];
   /** 排片（纪念视频首映）：两人都能发，列表里都能改 */

@@ -46,13 +46,16 @@ export function TopNav({
   author,
   reader = false,
   sections,
+  sheMenus,
 }: {
   title: string;
   author: boolean;
-  /** 她本人（读者或作者）＝看得到全部栏目 */
+  /** 她本人（读者或作者）＝看得到全部栏目（作者不传 sheMenus，不受限） */
   reader?: boolean;
   /** 各栏目对访客是否公开（读者登录后忽略） */
   sections?: Partial<Record<SectionKey, boolean>>;
+  /** 她登录后被授权的菜单项（settings.sheMenuKeys）；传了就按它滤栏目和「记一笔」 */
+  sheMenus?: readonly string[];
 }) {
   const pathname = usePathname();
   const t = useT();
@@ -84,8 +87,10 @@ export function TopNav({
     clearTimer.current = setTimeout(() => setRain(null), 4500);
   }
 
-  // 访客只看公开栏目；读者（她/作者）全看
-  const visibleTabs = reader ? TABS : TABS.filter((t) => sections?.[t.section] === true);
+  // 访客只看公开栏目；她按 sheMenuKeys 滤（作者不传＝全看）
+  const visibleTabs = reader
+    ? TABS.filter((t) => !sheMenus || sheMenus.includes(t.section))
+    : TABS.filter((t) => sections?.[t.section] === true);
 
   return (
     <>
@@ -116,7 +121,7 @@ export function TopNav({
                 {t(labelKey)}
               </Link>
             ))}
-            {(author || reader) && (
+            {(author || (reader && (!sheMenus || sheMenus.includes("write")))) && (
               <Link
                 href="/write"
                 className={cn(

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { isReader } from "@/lib/auth";
+import { isAuthor, isReader } from "@/lib/auth";
+import { canShePublish } from "@/lib/permissions";
 import { deleteMilestone, setMilestoneVisibility, updateMilestone } from "@/lib/milestones";
 
 export const runtime = "nodejs";
@@ -14,6 +15,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const { id } = await ctx.params;
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ error: "参数不对" }, { status: 400 });
+  // 她只有被授予「大事记」才能动（含快捷公开开关）；他不限
+  if (!(await isAuthor()) && !canShePublish("milestone")) {
+    return NextResponse.json({ error: "她还不能动这类内容" }, { status: 403 });
+  }
 
   // 列表上的快捷开关：只带 visibility 一个字段
   if (body.visibility === "public" || body.visibility === "private") {
@@ -35,6 +40,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   if (!(await isReader())) {
     return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
+  }
+  // 她只有被授予「大事记」才能删；他不限
+  if (!(await isAuthor()) && !canShePublish("milestone")) {
+    return NextResponse.json({ error: "她还不能动这类内容" }, { status: 403 });
   }
   const { id } = await ctx.params;
   deleteMilestone(id);
