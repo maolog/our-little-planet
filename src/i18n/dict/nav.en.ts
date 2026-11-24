@@ -10,6 +10,7 @@ export const en: Record<keyof NavMessages, string> = {
   "nav.tab.letters": "Letters",
   "nav.tab.timeline": "Milestones",
   "nav.tab.screenings": "Screenings",
+  "nav.more": "More",
   "nav.writeCta": "Write",
   "nav.backToWrite": "Back to the writing desk",
   "nav.lockAria": "{name}'s private entrance",

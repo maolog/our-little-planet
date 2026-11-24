@@ -1,47 +1,26 @@
 import { NextResponse } from "next/server";
-import {
-  AUTHOR_COOKIE,
-  COOKIE_OPTS,
-  READER_COOKIE,
-  authorCookieOpts,
-  authorToken,
-  checkPassword,
-  tokenFor,
-} from "@/lib/auth";
-import { clientIp, rateLimited, rateLimitFail, rateLimitOk } from "@/lib/rateLimit";
+import { checkPassword } from "@/lib/auth";
+import { issueSession, logoutResponse, passwordGate } from "@/lib/loginGate";
 
 /** 解锁：读者密码或作者口令都能翻开本子；作者口令同时拿到笔。
- *  作者会话是限时的（默认 AUTHOR_SESSION_HOURS 小时，勾 remember 才 30 天），
- *  读者会话照旧长期有效 */
+ *  会话与限流细节收在 loginGate 里（与 /api/desk、/api/pen 共用） */
 export async function POST(req: Request) {
-  // /api/lock 和 /api/pen 共用一个失败计数：换端口继续试也算同一把
-  const rlKey = `pw:${clientIp(req)}`;
-  if (rateLimited(rlKey)) {
-    return NextResponse.json({ error: "试得有点多，歇 10 分钟再来吧" }, { status: 429 });
-  }
-  const { password, remember } = (await req.json().catch(() => ({}))) as {
-    password?: string;
-    remember?: boolean;
-  };
-  const isReaderPw = checkPassword("reader", password);
-  const isAuthorPw = checkPassword("author", password);
-  if (!isReaderPw && !isAuthorPw) {
-    rateLimitFail(rlKey);
-    return NextResponse.json({ error: "密码好像不对哦，再想想？" }, { status: 401 });
-  }
-  rateLimitOk(rlKey);
+  const gate = await passwordGate(req, {
+    verify: (b) => checkPassword("reader", b.password) || checkPassword("author", b.password),
+    failMsg: "密码好像不对哦，再想想？",
+  });
+  if (!gate.ok) return gate.res;
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(READER_COOKIE, tokenFor("reader"), COOKIE_OPTS);
-  if (isAuthorPw) {
-    res.cookies.set(AUTHOR_COOKIE, authorToken(), authorCookieOpts(remember === true));
-  }
+  issueSession(res, {
+    reader: true,
+    // 用作者口令解锁的顺手把笔也拿到（记得勾过 remember 的话笔也是 30 天）
+    author: checkPassword("author", gate.body.password),
+    remember: gate.body.remember,
+  });
   return res;
 }
 
 /** 合上本子 */
 export async function DELETE() {
-  const res = NextResponse.json({ ok: true });
-  res.cookies.delete(READER_COOKIE);
-  res.cookies.delete(AUTHOR_COOKIE);
-  return res;
+  return logoutResponse();
 }

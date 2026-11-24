@@ -10,6 +10,7 @@ export const zhTW: Record<keyof NavMessages, string> = {
   "nav.tab.letters": "信箱",
   "nav.tab.timeline": "大事記",
   "nav.tab.screenings": "放映室",
+  "nav.more": "更多",
   "nav.writeCta": "記一筆",
   "nav.backToWrite": "回到寫作後台",
   "nav.lockAria": "{name}的專屬入口",

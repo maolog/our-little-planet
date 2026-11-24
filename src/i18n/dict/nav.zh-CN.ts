@@ -8,6 +8,7 @@ export const zhCN = {
   "nav.tab.letters": "信箱",
   "nav.tab.timeline": "大事记",
   "nav.tab.screenings": "放映室",
+  "nav.more": "更多",
   "nav.writeCta": "记一笔",
   "nav.backToWrite": "回到写作后台",
   "nav.lockAria": "{name}的专属入口",

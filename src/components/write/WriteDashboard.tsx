@@ -490,24 +490,29 @@ function DashboardInner({
     }
   }, [tab, filter]);
 
-  const refreshAll = useCallback(async () => {
-    const [e, m, s, g] = await Promise.all([
-      fetch("/api/entries").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch("/api/milestones").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch("/api/screenings").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch("/api/eggs").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-    ]);
-    if (e) setEntries(e.entries as EntryDTO[]);
-    if (m) setMilestones(m.milestones as MilestoneDTO[]);
-    if (s) setScreenings(s.screenings as Screening[]);
-    if (g) setEggs(g.eggs as EggDTO[]);
+  /** 定向刷新：发表/改动完只拉真正变了的列表，不四连刷。
+   *  各列表互不依赖——条目存完只有条目列表会变，大事记/彩蛋/排片同理 */
+  const refresh = useCallback(async (...keys: ("entries" | "milestones" | "screenings" | "eggs")[]) => {
+    const one = async (k: (typeof keys)[number]) => {
+      const path =
+        k === "entries" ? "/api/entries" : k === "milestones" ? "/api/milestones" : k === "screenings" ? "/api/screenings" : "/api/eggs";
+      const data = await fetch(path)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      if (!data) return;
+      if (k === "entries") setEntries(data.entries as EntryDTO[]);
+      else if (k === "milestones") setMilestones(data.milestones as MilestoneDTO[]);
+      else if (k === "screenings") setScreenings(data.screenings as Screening[]);
+      else setEggs(data.eggs as EggDTO[]);
+    };
+    await Promise.all(keys.map(one));
   }, []);
 
   /** 按张管理改完一张（描述/日期/标签）后同步素材列表；挪日期的顺手刷新条目列表；新标签顺手进标签库 */
   function patchAlbumItem(id: string, patch: Partial<AlbumPickItem>) {
     setAlbumItems((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
     if (patch.tags) setTagLib((prev) => [...new Set([...prev, ...patch.tags!])].sort((a, b) => (a < b ? -1 : 1)));
-    if (patch.entryDate !== undefined) void refreshAll();
+    if (patch.entryDate !== undefined) void refresh("entries");
   }
 
   /** 按张删一张：本地列表立刻移掉，条目列表刷新（空页会被回收） */
@@ -515,7 +520,7 @@ function DashboardInner({
     const res = await fetch(`/api/media/${id}?force=1`, { method: "DELETE" }).catch(() => null);
     if (res && res.ok) {
       setAlbumItems((prev) => prev.filter((a) => a.id !== id));
-      void refreshAll();
+      void refresh("entries"); // 空页会被回收，条目列表跟着动
       toast(t("wd.rowDelOk"));
     } else {
       toast(t("wd.rowDelFail"), "error");
@@ -541,28 +546,28 @@ function DashboardInner({
     setEditing(null);
     setBoardSeq((s) => s + 1);
     setTab("list");
-    void refreshAll();
+    void refresh("entries");
   }
 
   function onMilestoneSaved() {
     setEditingMilestone(null);
     setMilestoneSeq((s) => s + 1);
     setTab("list");
-    void refreshAll();
+    void refresh("milestones");
   }
 
   function onEggSaved() {
     setEditingEgg(null);
     setEggSeq((s) => s + 1);
     setTab("list");
-    void refreshAll();
+    void refresh("eggs");
   }
 
   function onScreeningSaved() {
     setEditingScreening(null);
     setScreeningSeq((s) => s + 1);
     setTab("list");
-    void refreshAll();
+    void refresh("screenings");
   }
 
   /** 排片的同一枚公开开关：这场首映对访客公开 / 仅她可见 */

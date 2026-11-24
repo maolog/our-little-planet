@@ -33,7 +33,9 @@ export function PenGate({ demoHint }: { demoHint?: string }) {
         window.location.reload();
         return;
       }
-      setError(t("gate.error.wrong"));
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      // 服务端会按 cookie 语言返回已本地化的 error（口令不对 / 限流 429）；没有时用当前语言兜底
+      setError(data.error ?? t("gate.error.wrong"));
       setShake(true);
       setTimeout(() => setShake(false), 500);
       inputRef.current?.focus();

@@ -1315,26 +1315,28 @@ export function EntryForm({
         visibility: isPublic ? ("public" as const) : ("private" as const),
       };
 
-      // 「存照片」新建：按各自拍摄日期自动拆成多页，分别出现在对应日期里
+      // 「存照片」新建：按各自拍摄日期自动拆成多页，分别出现在对应日期里。
+      // 各页互不相干，一起发（N 个串行往返并成一批），谁失败抛谁的错
       if (!initial && isPhoto) {
         const groups = new Map<string, Card[]>();
         for (const c of cards) groups.set(c.date, [...(groups.get(c.date) ?? []), c]);
         const sorted = [...groups.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
-        let last: EntryDTO | null = null;
-        for (const [d, list] of sorted) {
-          const { media } = splitCards(list);
-          const res = await fetch("/api/entries", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...base, entryDate: d, media }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error ?? t("ms.saveFail"));
-          last = data.entry as EntryDTO;
-        }
-        toast(t("ef.savedSplit", { n: sorted.length }));
+        const pages = await Promise.all(
+          sorted.map(async ([d, list]) => {
+            const { media } = splitCards(list);
+            const res = await fetch("/api/entries", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...base, entryDate: d, media }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error ?? t("ms.saveFail"));
+            return data.entry as EntryDTO;
+          })
+        );
+        toast(t("ef.savedSplit", { n: pages.length }));
         reset();
-        onSaved(last!, true);
+        onSaved(pages[pages.length - 1], true);
         return;
       }
 
