@@ -7,17 +7,15 @@
 export const PUBLISHABLE_TYPES = ["journal", "photo", "quote", "letter", "milestone", "screening"] as const;
 export type PublishType = (typeof PUBLISHABLE_TYPES)[number];
 
-/** 她登录后能看到哪些导航栏目（guest 的开关是 sections，她的是这里）；后三项是写作台入口 */
-export const MENU_KEYS = [
-  "home",
-  "calendar",
-  "milestones",
-  "timeline",
-  "photos",
-  "notes",
-  "screenings",
-  "write",
-  "list",
-  "marks",
-] as const;
+/** 导航栏目词表：与顶部导航 TABS 的 section、settings.ts 的 SECTIONS 是同一套词
+ *  （顺序即导航顺序）。拆在这里是为了让客户端组件（SettingsForm/TopNav）
+ *  不必 import settings.ts（它连着 db.ts，进不了浏览器包）。 */
+export const NAV_KEYS = ["home", "journal", "album", "quotes", "letters", "timeline", "screenings"] as const;
+export type NavKey = (typeof NAV_KEYS)[number];
+
+/** 她登录后能看到哪些菜单（sheMenuKeys 存的 CSV 词表）：
+ *  导航栏目 + 写作台入口（write/list/marks 三项）。
+ *  必须与 NAV_KEYS 同构——否则 SettingsForm 勾选的栏目在保存/读取时会被
+ *  parseCsv 过滤丢掉，导航（TopNav 按 section 匹配）也永远匹配不上。 */
+export const MENU_KEYS = [...NAV_KEYS, "write", "list", "marks"] as const;
 export type MenuKey = (typeof MENU_KEYS)[number];

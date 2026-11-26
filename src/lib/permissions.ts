@@ -36,3 +36,9 @@ export function canShePublish(type: string, settings?: SiteSettings): boolean {
 export function canSheSee(key: string, settings?: SiteSettings): boolean {
   return sheMenuKeys(settings).has(key);
 }
+
+/** 她有没有写作台任一入口（write/list/marks）——desk 页面落座与 /api/desk 的 next
+ *  共用这一条规则，别再各自写一遍 */
+export function canSheEnterWriteDesk(settings?: SiteSettings): boolean {
+  return canSheSee("write", settings) || canSheSee("list", settings) || canSheSee("marks", settings);
+}

@@ -38,7 +38,8 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
   const FILTER_KEYS = ["all", "journal", "photo", "quote", "letter", "milestone", "screening", "egg"];
   const initialFilter = typeof sp.filter === "string" && FILTER_KEYS.includes(sp.filter) ? sp.filter : undefined;
   const [entries, settings, eggs, milestones, screenings, album] = [
-    listEntries({ includeDrafts: true }),
+    // 口径与 GET /api/entries 一致：他全看，她只多看自己创建的未公开条目
+    listEntries({ includeDrafts: canManage ? true : "own" }),
     getSettings(),
     listEggs(),
     listMilestones(),

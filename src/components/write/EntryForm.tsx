@@ -1316,14 +1316,17 @@ export function EntryForm({
       };
 
       // 「存照片」新建：按各自拍摄日期自动拆成多页，分别出现在对应日期里。
-      // 各页互不相干，一起发（N 个串行往返并成一批），谁失败抛谁的错
+      // 串行发：一页失败就停（不再往下发），已成功的页照常入册并明确告知
+      // 「成功几页、哪出错」——别并行下报错却已发出去几页，重试就重复
       if (!initial && isPhoto) {
         const groups = new Map<string, Card[]>();
         for (const c of cards) groups.set(c.date, [...(groups.get(c.date) ?? []), c]);
         const sorted = [...groups.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
-        const pages = await Promise.all(
-          sorted.map(async ([d, list]) => {
-            const { media } = splitCards(list);
+        const pages: EntryDTO[] = [];
+        let failMsg = "";
+        for (const [d, list] of sorted) {
+          const { media } = splitCards(list);
+          try {
             const res = await fetch("/api/entries", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1331,10 +1334,14 @@ export function EntryForm({
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error ?? t("ms.saveFail"));
-            return data.entry as EntryDTO;
-          })
-        );
-        toast(t("ef.savedSplit", { n: pages.length }));
+            pages.push(data.entry as EntryDTO);
+          } catch (e) {
+            failMsg = e instanceof Error ? e.message : t("ms.saveFail");
+            break;
+          }
+        }
+        if (pages.length === 0) throw new Error(failMsg || t("ms.saveFail"));
+        toast(failMsg ? `${t("ef.savedSplit", { n: pages.length })}（${failMsg}）` : t("ef.savedSplit", { n: pages.length }));
         reset();
         onSaved(pages[pages.length - 1], true);
         return;

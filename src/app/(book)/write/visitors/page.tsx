@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { after } from "next/server";
+import { redirect } from "next/navigation";
 import { ArrowLeft, GlobeHemisphereWest, MapPin, Phone, Robot } from "@phosphor-icons/react/dist/ssr";
-import { isAuthor } from "@/lib/auth";
+import { isAuthor, isReader } from "@/lib/auth";
 import { recordGuestVisitFor, ensureGeo, geoFromCache, visitorStats } from "@/lib/visitors";
 import { PenGate } from "@/components/write/PenGate";
 import { DoodleDivider } from "@/components/journal/DoodleDivider";
@@ -43,7 +44,12 @@ function pathLabel(t: T, p: string): string {
  *  她（和作者）带着登录 cookie，不会出现在这里 */
 export default async function VisitorsPage() {
   await recordGuestVisitFor("/write/visitors");
-  if (!(await isAuthor())) return <PenGate />;
+  // 只有作者能看访客记录。她（读者会话）误入这里时直接回写作台——
+  // PenGate 收的是读者密码，她输对了 reload 后仍非 author，会卡死循环
+  if (!(await isAuthor())) {
+    if (await isReader()) redirect("/write");
+    return <PenGate />;
+  }
   const locale = await getLocale();
   const t: T = (key, params) => tWith(locale, key, params);
   const stats = visitorStats();

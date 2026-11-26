@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
-import { isAuthor } from "@/lib/auth";
+import { isAuthor, isReader } from "@/lib/auth";
 import { listScreenings } from "@/lib/screenings";
 import { listAlbum } from "@/lib/entries";
 import { PenGate } from "@/components/write/PenGate";
@@ -17,7 +18,11 @@ export async function generateMetadata(): Promise<Metadata> {
 /** 放映室的后台：排一场新首映 / 管理已有的场次 */
 export default async function WriteScreeningsPage() {
   await recordGuestVisitFor("/write/screenings");
-  if (!(await isAuthor())) return <PenGate />;
+  // 排片后台仅作者可见；她（读者会话）误入直接回写作台，避免 PenGate 死循环
+  if (!(await isAuthor())) {
+    if (await isReader()) redirect("/write");
+    return <PenGate />;
+  }
   const locale = await getLocale();
   const t = (key: keyof Dict, params?: Record<string, string | number>) => tWith(locale, key, params);
   const screenings = listScreenings({ includeUnpublished: true });

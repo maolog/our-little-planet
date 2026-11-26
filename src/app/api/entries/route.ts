@@ -10,8 +10,10 @@ export async function GET() {
   if (!(await isReader())) {
     return NextResponse.json({ error: "先解锁本子" }, { status: 401 });
   }
-  // 写作台视角：草稿和定时未到的都看得到
-  return NextResponse.json({ entries: listEntries({ includeDrafts: true }) });
+  // 写作台视角：他（作者）看得到一切草稿和定时未到的；
+  // 她只多看自己创建的未公开条目（自己的定时信），他的未发表内容不给
+  const author = await isAuthor();
+  return NextResponse.json({ entries: listEntries({ includeDrafts: author ? true : "own" }) });
 }
 
 export async function POST(req: Request) {

@@ -164,10 +164,18 @@ function sanitizeRefMediaList(input: EntryInput["refMedia"], ownedIds: Set<strin
   return JSON.stringify(clean);
 }
 
-/** 读者视角：已发布且已到公开时间（作者视角 includeDrafts = true 时全看）；
+/** 读者视角：已发布且已到公开时间；作者视角 includeDrafts = true 时全看；
+ *  includeDrafts = "own" 给她用——公开的照常看，未公开（定时未到/旧草稿）
+ *  只看自己创建的，他的未发表内容不进她的 payload；
  *  guest = true 时只看标了公开的页（访客模式，未登录） */
 export function listEntries(
-  opts: { type?: EntryType; excludeTypes?: EntryType[]; includeDrafts?: boolean; limit?: number; guest?: boolean } = {}
+  opts: {
+    type?: EntryType;
+    excludeTypes?: EntryType[];
+    includeDrafts?: boolean | "own";
+    limit?: number;
+    guest?: boolean;
+  } = {}
 ): EntryWithMedia[] {
   const where: string[] = [];
   const params: Record<string, unknown> = {};
@@ -179,7 +187,10 @@ export function listEntries(
     where.push(`type NOT IN (${opts.excludeTypes.map((_, i) => `@ex${i}`).join(", ")})`);
     opts.excludeTypes.forEach((t, i) => (params[`ex${i}`] = t));
   }
-  if (!opts.includeDrafts) {
+  if (opts.includeDrafts === "own") {
+    where.push("((published = 1 AND (reveal_at IS NULL OR reveal_at <= @today)) OR created_by = 'reader')");
+    params.today = todayLocal();
+  } else if (!opts.includeDrafts) {
     where.push("published = 1");
     where.push("(reveal_at IS NULL OR reveal_at <= @today)");
     params.today = todayLocal();

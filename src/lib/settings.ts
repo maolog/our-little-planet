@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { NAV_KEYS, type NavKey } from "./permissionKeys";
 
 export type SiteSettings = {
   /** 本子的名字，如「我们的小星球」 */
@@ -119,9 +120,10 @@ export function saveSettings(patch: Partial<SiteSettings>): SiteSettings {
   return getSettings();
 }
 
-/** 顶部导航的栏目 key（顺序即导航顺序） */
-export const SECTIONS = ["home", "journal", "album", "quotes", "letters", "timeline", "screenings"] as const;
-export type SectionKey = (typeof SECTIONS)[number];
+/** 顶部导航的栏目 key（顺序即导航顺序）——词表单一来源在 permissionKeys.ts 的 NAV_KEYS，
+ *  与她菜单开关（MENU_KEYS 前段）保证同构 */
+export const SECTIONS = NAV_KEYS;
+export type SectionKey = NavKey;
 
 const SECTION_SETTING: Record<SectionKey, keyof SiteSettings> = {
   home: "guestHome",

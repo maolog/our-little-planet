@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkPassword } from "@/lib/auth";
-import { canSheSee } from "@/lib/permissions";
+import { canSheEnterWriteDesk } from "@/lib/permissions";
 import { issueSession, logoutResponse, passwordGate } from "@/lib/loginGate";
 
 /** 隐蔽写作入口的身份验证：先选「他」或「她」，各输各的密码。
@@ -19,12 +19,7 @@ export async function POST(req: Request) {
   const identity = gate.body.identity as "he" | "she";
   // next = 登录后的落点，由服务端按权限算好：他永远进写作台；
   // 她只有被授予写作台入口（write/list/marks 任一）才去 /write，否则回首页
-  const next =
-    identity === "he"
-      ? "/write"
-      : canSheSee("write") || canSheSee("list") || canSheSee("marks")
-        ? "/write"
-        : "/";
+  const next = identity === "he" || canSheEnterWriteDesk() ? "/write" : "/";
   const res = NextResponse.json({ ok: true, identity, next });
   if (identity === "he") {
     // 他 = 最高权限：拿作者笔（限时会话），同时天然能读

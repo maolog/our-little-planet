@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { isAuthor, isReader } from "@/lib/auth";
-import { canSheSee } from "@/lib/permissions";
+import { canSheEnterWriteDesk } from "@/lib/permissions";
 import { DeskForm } from "@/components/desk/DeskForm";
 import { Sticker } from "@/components/journal/Sticker";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -17,7 +17,7 @@ import { translate } from "@/i18n";
 export default async function DeskPage() {
   await recordGuestVisitFor("/desk");
   if (await isReader()) {
-    const toWrite = (await isAuthor()) || canSheSee("write") || canSheSee("list") || canSheSee("marks");
+    const toWrite = (await isAuthor()) || canSheEnterWriteDesk();
     redirect(toWrite ? "/write" : "/");
   }
 

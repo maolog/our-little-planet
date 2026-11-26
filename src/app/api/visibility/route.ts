@@ -29,15 +29,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "先勾选要改的内容" }, { status: 400 });
   }
 
-  // 她只能批量动被授予发表的类型（按条目实际类型过滤，拼贴页按手账页算；他不限）
+  // 她只能批量动被授予发表的类型（拼贴页按手账页算；他不限）。
+  // 有任何一条越权就整体 403——别静默剔除后「部分成功」，她会以为全改了
   if (!(await isAuthor())) {
-    if (milestoneIds.length > 0 && !canShePublish("milestone")) milestoneIds = [];
-    entryIds = entryIds.filter((id) => {
-      const row = db.prepare("SELECT type FROM entries WHERE id = ?").get(id) as { type?: string } | undefined;
-      return row ? canShePublish(row.type ?? "") : false;
-    });
-    if (entryIds.length === 0 && milestoneIds.length === 0) {
+    if (milestoneIds.length > 0 && !canShePublish("milestone")) {
       return NextResponse.json({ error: "她还不能动这类内容" }, { status: 403 });
+    }
+    for (const id of entryIds) {
+      const row = db.prepare("SELECT type FROM entries WHERE id = ?").get(id) as { type?: string } | undefined;
+      if (!row || !canShePublish(row.type ?? "")) {
+        return NextResponse.json({ error: "她还不能动这类内容" }, { status: 403 });
+      }
     }
   }
 

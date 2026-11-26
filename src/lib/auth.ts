@@ -78,10 +78,9 @@ export function checkPassword(role: "reader" | "author", input: unknown): boolea
 
 export async function isReader(): Promise<boolean> {
   const c = await cookies();
-  return (
-    safeEqual(c.get(READER_COOKIE)?.value ?? "", tokenFor("reader")) ||
-    safeEqual(c.get(AUTHOR_COOKIE)?.value ?? "", tokenFor("author"))
-  );
+  // 作者侧只认在有效期内的签名会话：旧格式（纯哈希）与 isAuthor 同口径视为
+  // 已过期——别再一边登出一边又当读者放进来
+  return safeEqual(c.get(READER_COOKIE)?.value ?? "", tokenFor("reader")) || validAuthorToken(c.get(AUTHOR_COOKIE)?.value);
 }
 
 export async function isAuthor(): Promise<boolean> {
